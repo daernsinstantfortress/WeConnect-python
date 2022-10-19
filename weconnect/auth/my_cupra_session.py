@@ -342,3 +342,7 @@ class MyCupraSession(VWWebSession):
 
         return super(MyCupraSession, self).request(method, url, headers=headers, data=data, withhold_token=withhold_token, access_type=access_type, token=token,
                                                    timeout=timeout, **kwargs)
+
+    @property
+    def user_id(self):
+        return self.__userId

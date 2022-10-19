@@ -47,7 +47,8 @@ class GenericStatus(AddressableObject):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update status from dict')
 
-        if 'value' in fromDict:
+        # Cupra is not a dict
+        if isinstance(fromDict, Dict) and 'value' in fromDict:
             if 'carCapturedTimestamp' in fromDict['value']:
                 carCapturedTimestamp: Optional[datetime] = robustTimeParse(fromDict['value']['carCapturedTimestamp'])
                 if self.fixAPI and carCapturedTimestamp is not None:
@@ -83,12 +84,14 @@ class GenericStatus(AddressableObject):
             self.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
             self.carCapturedTimestamp.enabled = False
 
-        if 'error' in fromDict:
+        # Cupra is not a dict
+        if isinstance(fromDict, Dict) and 'error' in fromDict:
             self.error.update(fromDict['error'])
         else:
             self.error.reset()
 
-        if 'requests' in fromDict:
+        # Cupra is not a dict
+        if isinstance(fromDict, Dict) and 'requests' in fromDict:
             requestsToRemove = list(self.requests.keys())
             for request in fromDict['requests']:
                 key = None
@@ -114,9 +117,11 @@ class GenericStatus(AddressableObject):
             self.requests.clear()
             self.requests.enabled = False
 
-        for key, value in {key: value for key, value in fromDict.items()
-                           if key not in (['value', 'error', 'requests'] + ['carCapturedTimestamp'] + ignoreAttributes)}.items():
-            LOG.warning('%s: Unknown element %s with value %s', self.getGlobalAddress(), key, value)
+        # Cupra is not a dict
+        if isinstance(fromDict, Dict):
+            for key, value in {key: value for key, value in fromDict.items()
+                            if key not in (['value', 'error', 'requests'] + ['carCapturedTimestamp'] + ignoreAttributes)}.items():
+                LOG.warning('%s: Unknown element %s with value %s', self.getGlobalAddress(), key, value)
 
     def __str__(self) -> str:
         returnString: str = f'[{self.id}]'

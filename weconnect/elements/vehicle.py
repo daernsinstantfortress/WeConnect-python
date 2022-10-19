@@ -45,6 +45,9 @@ from weconnect.weconnect_errors import ErrorEventType
 from weconnect.domain import Domain
 from weconnect.elements.error import Error
 
+# Cupra
+from weconnect.elements.engine_state_cupra import EngineStateCupra
+
 from weconnect.elements.helpers.request_tracker import RequestTracker
 
 SUPPORT_IMAGES = False
@@ -213,7 +216,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                               'coUsers']}.items():
                 LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
-        self.updateStatus(updateCapabilities=updateCapabilities, force=force, selective=selective)
+        self.updateStatusCupra(updateCapabilities=updateCapabilities, force=force, selective=selective)
         if SUPPORT_IMAGES and updatePictures:
             for badge in Vehicle.Badge:
                 badgeImg: Image = Image.open(f'{os.path.dirname(__file__)}/../badges/{badge.value}.png')
@@ -303,6 +306,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             jobs = ['all']
         else:
             jobs = [domain.value for domain in selective]
+        
         url: str = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/selectivestatus?jobs=' + ','.join(jobs)
         data: Optional[Dict[str, Any]] = self.weConnect.fetchData(url, force)
         if data is not None:
@@ -362,6 +366,174 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                     parkingPosition.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
                     parkingPosition.carCapturedTimestamp.enabled = False
                     parkingPosition.enabled = False
+
+    def updateStatusCupra(self, updateCapabilities: bool = True, force: bool = False,  # noqa: C901 # pylint: disable=too-many-branches
+                selective: Optional[list[Domain]] = None):
+
+        jobKeyClassMap: Dict[Domain, Dict[str, Type[GenericStatus]]] = {
+            Domain.ACCESS: {
+                'accessStatus': AccessStatus
+            },
+            Domain.AUTOMATION: {
+                'climatisationTimer': ClimatizationTimer,
+                'climatisationTimersRequestStatus': GenericRequestStatus,
+                'chargingProfiles': ChargingProfiles,
+            },
+            Domain.USER_CAPABILITIES: {
+                'capabilitiesStatus': CapabilityStatus,
+            },
+            Domain.CHARGING: {
+                'batteryStatus': BatteryStatus,
+                'chargingStatus': ChargingStatus,
+                'chargingSettings': ChargingSettings,
+                'chargeMode': ChargeMode,
+                'plugStatus': PlugStatus,
+                'chargingRequestStatus': GenericRequestStatus,
+                'chargingSettingsRequestStatus': GenericRequestStatus,
+                'chargingCareSettings': GenericSettings,
+            },
+            Domain.CLIMATISATION: {
+                'climatisationStatus': ClimatizationStatus,
+                'climatisationSettings': ClimatizationSettings,
+                'windowHeatingStatus': WindowHeatingStatus,
+                'climatisationRequestStatus': GenericRequestStatus,
+                'climatisationSettingsRequestStatus': GenericRequestStatus,
+            },
+            Domain.FUEL_STATUS: {
+                'rangeStatus': RangeStatus,
+            },
+            Domain.VEHICLE_LIGHTS: {
+                'lightsStatus': LightsStatus,
+            },
+            Domain.LV_BATTERY: {
+                'lvBatteryStatus': LVBatteryStatus,
+            },
+            Domain.READINESS: {
+                'readinessStatus': ReadinessStatus,
+                'readinessBatterySupportStatus': GenericStatus,
+            },
+            Domain.VEHICLE_HEALTH_INSPECTION: {
+                'maintenanceStatus': MaintenanceStatus,
+            },
+            Domain.VEHICLE_HEALTH_WARNINGS: {
+                'warningLights': WarningLightsStatus,
+            },
+            Domain.OIL_LEVEL: {
+                'oilLevelStatus': GenericStatus,
+            },
+            Domain.MEASUREMENTS: {
+                'rangeStatus': RangeMeasurements,
+                'odometerStatus': OdometerMeasurement,
+                'oilLevelStatus': GenericStatus,
+                'measurements': GenericStatus,
+                # Cupra Born
+                'mileageKm': OdometerMeasurement,
+            },
+            Domain.BATTERY_SUPPORT: {
+                'batterySupportStatus': GenericStatus,
+            },
+            # Cupra
+            Domain.SERVICES: {
+                'charging': ChargingStatus,
+                # Needs fixed for Cupra
+                # 'climatisation': ClimatizationStatus
+            },
+            Domain.ENGINES: {
+                'primary': EngineStateCupra
+            }
+        }
+
+
+        if self.vin.value is None:
+            raise APIError('VIN value is not set')
+        if selective is None:
+            jobs = [domain.value for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE and domain != Domain.PARKING]
+        elif Domain.ALL_CAPABLE in selective:
+            if self.capabilities:
+                jobs = []
+                for dom in [domain for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE and domain != Domain.PARKING]:
+                    if dom.value in self.capabilities and self.capabilities[dom.value].enabled and not self.capabilities[dom.value].status.enabled:
+                        jobs.append(dom.value)
+                if updateCapabilities:
+                    jobs.append(Domain.USER_CAPABILITIES.value)
+            else:
+                jobs = ['all']
+        elif Domain.ALL in selective:
+            jobs = ['all']
+        else:
+            jobs = [domain.value for domain in selective]
+
+        # Alan        
+        # url: str = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/selectivestatus?jobs=' + ','.join(jobs)
+        url: str = f'{self.weConnect.base_url}/v2/users/{self.weConnect.session.user_id}/vehicles/{self.vin.value}/mycar'
+        print(url)
+
+        data: Optional[Dict[str, Any]] = self.weConnect.fetchData(url, force)
+
+        # Alan
+        from pprint import pprint
+        pprint(data)
+
+        if data is not None:
+            # Iterate over top-level items in data dict
+            for domain, keyClassMap in jobKeyClassMap.items():
+                if not updateCapabilities and domain == Domain.USER_CAPABILITIES:
+                    continue
+                if domain.value in data:
+                    if domain.value not in self.domains:
+                        self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
+                    
+                    for key, className in keyClassMap.items():
+                        if key in data[domain.value]:
+                            if key in self.domains[domain.value]:
+                                LOG.debug('Status %s exists, updating it', key)
+                                self.domains[domain.value][key].update(fromDict=data[domain.value][key])
+                            else:
+                                LOG.debug('Status %s does not exist, creating it', key)
+                                self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
+                                                                            fromDict=data[domain.value][key], fixAPI=self.fixAPI)
+                    if 'error' in data[domain.value]:
+                        self.domains[domain.value].updateError(data[domain.value])
+
+                    # check that there is no additional status than the configured ones, except for "target" that we merge into
+                    # the known ones
+                    for key, value in {key: value for key, value in data[domain.value].items()
+                                       if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
+                        LOG.warning('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
+            # check that there is no additional domain than the configured ones
+            for key, value in {key: value for key, value in data.items() if key not in list([domain.value for domain in jobKeyClassMap.keys()])}.items():
+                LOG.warning('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
+
+        # Controls
+        self.controls.update()
+
+        if (selective is None or any(x in selective for x in [Domain.ALL, Domain.ALL_CAPABLE, Domain.PARKING])) \
+                and (not updateCapabilities or ('parkingPosition' in self.capabilities and self.capabilities['parkingPosition'].status.value is None)):
+            url = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/parkingposition'
+            data = self.weConnect.fetchData(url, force, allowEmpty=True, allowHttpError=True, allowedErrors=[codes['not_found'],
+                                                                                                             codes['no_content'],
+                                                                                                             codes['bad_gateway'],
+                                                                                                             codes['forbidden']])
+
+            if data is not None:
+                if 'parking' not in self.domains:
+                    self.domains['parking'] = DomainDict(localAddress='parking', parent=self)
+                if 'parkingPosition' in self.domains['parking']:
+                    self.domains['parking']['parkingPosition'].update(fromDict=data)
+                else:
+                    self.domains['parking']['parkingPosition'] = ParkingPosition(vehicle=self,
+                                                                                 parent=self.domains['parking'],
+                                                                                 statusId='parkingPosition',
+                                                                                 fromDict=data)
+            else:
+                if self.statusExists('parking', 'parkingPosition'):
+                    parkingPosition: ParkingPosition = cast(ParkingPosition, self.domains['parking']['parkingPosition'])
+                    parkingPosition.latitude.enabled = False
+                    parkingPosition.longitude.enabled = False
+                    parkingPosition.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
+                    parkingPosition.carCapturedTimestamp.enabled = False
+                    parkingPosition.enabled = False
+
 
     def updatePictures(self) -> None:  # noqa: C901
         if not SUPPORT_IMAGES:
@@ -718,7 +890,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.roleReseted: AddressableAttribute[bool] = AddressableAttribute(localAddress='roleReseted', parent=self, value=None, valueType=bool)
             self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(localAddress='enrollmentStatus', parent=self,
                                                                                                               value=None,
-                                                                                                              valueType=Vehicle.User.EnrollmentStatus)
+                                                                                                              valueType=Vehicle.User.CupraEnrollmentStatus)
 
             if fromDict is not None:
                 self.update(fromDict)
@@ -784,6 +956,15 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             GDC_MISSING = 'GDC_MISSING'
             INACTIVE = 'INACTIVE'
             UNKNOWN = 'UNKNOWN'
+
+        class CupraEnrollmentStatus(Enum,):
+            STARTED = 'started'
+            NOT_STARTED = 'not_started'
+            COMPLETED = 'completed'
+            GDC_MISSING = 'gdc_missing'
+            INACTIVE = 'inactive'
+            UNKNOWN = 'unknown'
+
 
         class UserRoleStatus(Enum,):
             ENABLED = 'ENABLED'

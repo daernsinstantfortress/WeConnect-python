@@ -19,6 +19,8 @@ class Domain(Enum):
     MEASUREMENTS = 'measurements'
     BATTERY_SUPPORT = 'batterySupport'
     PARKING = 'parking'
+    SERVICES = 'services'
+    ENGINES = 'engines'
 
     def __str__(self):
         return self.value

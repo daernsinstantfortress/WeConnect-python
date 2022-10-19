@@ -1,4 +1,5 @@
 from __future__ import annotations
+from multiprocessing import managers
 from typing import Dict, List, Set, Tuple, Callable, Any, Optional
 
 import os
@@ -21,7 +22,6 @@ from weconnect.util import ExtendedEncoder
 
 LOG = logging.getLogger("weconnect")
 
-
 class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attributes, too-many-public-methods
     """Main class used to interact with WeConnect"""
 
@@ -39,7 +39,8 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         updatePictures: bool = True,
         numRetries: int = 3,
         timeout: bool = None,
-        selective: Optional[list[Domain]] = None
+        selective: Optional[list[Domain]] = None,
+        service = Service.WE_CONNECT
     ) -> None:
         """Initialize WeConnect interface. If loginOnInit is true the user will be tried to login.
            If loginOnInit is true also an initial fetch of data is performed.
@@ -88,9 +89,17 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         self.tokenfile = tokenfile
 
         self.__manager = SessionManager(tokenstorefile=tokenfile)
-        self.__session = self.__manager.getSession(Service.WE_CONNECT, SessionUser(username=username, password=password))
+        self.__session = self.__manager.getSession(service, SessionUser(username=username, password=password))
         self.__session.timeout = timeout
         self.__session.retries = numRetries
+
+        # Setting base url must be doen before login() or update()
+        self.__service = service
+        if service == Service.MY_CUPRA:
+            # https://github.com/evcc-io/evcc/blob/7abee00aa98a29d46d9d3c2a7a16a601558129b7/vehicle/seat/cupra/api.go
+            self.base_url = 'https://ola.prod.code.seat.cloud.vwgroup.com'
+        else:
+            self.base_url = 'https://mobileapi.apps.emea.vwapps.io'
 
         if loginOnInit:
             self.__session.login()
@@ -172,13 +181,13 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
                selective: Optional[list[Domain]] = None) -> None:
         self.__elapsed.clear()
-        self.updateVehicles(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
+        self.updateVehiclesCupra(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
         self.updateChargingStations(force=force)
         self.updateComplete()
 
     def updateVehicles(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,  # noqa: C901
                        selective: Optional[list[Domain]] = None) -> None:
-        url = 'https://mobileapi.apps.emea.vwapps.io/vehicles'
+        url = f'{self.base_url}/vehicles'
         data = self.fetchData(url, force)
         if data is not None:
             if 'data' in data and data['data']:
@@ -205,6 +214,42 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
 
                 self.__cache[url] = (data, str(datetime.utcnow()))
 
+    def updateVehiclesCupra(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,  # noqa: C901
+                       selective: Optional[list[Domain]] = None) -> None:
+        
+        url = f'{self.base_url}/v1/users/{self.__session.user_id}/garage/vehicles'
+        print('url', url)
+
+        data = self.fetchData(url, force)
+
+        # Alan
+        from pprint import pprint
+        pprint(data)
+
+        if data is not None and 'vehicles' in data and data['vehicles']:
+            vins: List[str] = []
+            for vehicleDict in data['vehicles']:
+                if 'vin' not in vehicleDict:
+                    break
+                vin: str = vehicleDict['vin']
+                vins.append(vin)
+                try:
+                    if vin not in self.__vehicles:
+                        vehicle = Vehicle(weConnect=self, vin=vin, parent=self.__vehicles, fromDict=vehicleDict, fixAPI=self.fixAPI,
+                                            updateCapabilities=updateCapabilities, updatePictures=updatePictures, selective=selective,
+                                            enableTracker=self.__enableTracker)
+                        self.__vehicles[vin] = vehicle
+                    else:
+                        self.__vehicles[vin].update(fromDict=vehicleDict, updateCapabilities=updateCapabilities, updatePictures=updatePictures,
+                                                    selective=selective)
+                except RetrievalError as retrievalError:
+                    LOG.error('Failed to retrieve data for VIN %s: %s', vin, retrievalError)
+            # delete those vins that are not anymore available
+            for vin in [vin for vin in self.__vehicles if vin not in vins]:
+                del self.__vehicles[vin]
+
+            self.__cache[url] = (data, str(datetime.utcnow()))
+
     def setChargingStationSearchParameters(self, latitude: float, longitude: float, searchRadius: Optional[int] = None, market: Optional[str] = None,
                                            useLocale: Optional[str] = locale.getlocale()[0]) -> None:
         self.latitude = latitude
@@ -216,7 +261,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
     def getChargingStations(self, latitude, longitude, searchRadius=None, market=None, useLocale=None,  # noqa: C901
                             force=False) -> AddressableDict[str, ChargingStation]:
         chargingStationMap: AddressableDict[str, ChargingStation] = AddressableDict(localAddress='', parent=None)
-        url: str = f'https://mobileapi.apps.emea.vwapps.io/charging-stations/v2?latitude={latitude}&longitude={longitude}'
+        url: str = f'{self.base_url}/charging-stations/v2?latitude={latitude}&longitude={longitude}'
         if market is not None:
             url += f'&market={market}'
         if useLocale is not None:
@@ -241,7 +286,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
 
     def updateChargingStations(self, force: bool = False) -> None:  # noqa: C901 # pylint: disable=too-many-branches
         if self.latitude is not None and self.longitude is not None:
-            url: str = f'https://mobileapi.apps.emea.vwapps.io/charging-stations/v2?latitude={self.latitude}&longitude={self.longitude}'
+            url: str = f'{self.base_url}/charging-stations/v2?latitude={self.latitude}&longitude={self.longitude}'
             if self.market is not None:
                 url += f'&market={self.market}'
             if self.useLocale is not None:
