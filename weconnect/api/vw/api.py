@@ -1,27 +1,39 @@
 from __future__ import annotations
-from typing import Dict, List, Set, Tuple, Callable, Any, Optional
+from typing import List, Tuple, Optional
 import logging
 from datetime import datetime
 
-from weconnect.addressable import AddressableDict
+from weconnect.addressable import AddressableDict, AddressableObject
 from weconnect.errors import RetrievalError
 from weconnect.api.vw.domain import Domain
 from weconnect.api.vw.elements.vehicle import Vehicle
 from weconnect.api.vw.elements.charging_station import ChargingStation
+from weconnect.fetch import Fetcher
 
 
 LOG = logging.getLogger("weconnect")
 
 
 class VwApi:
-    def __init__(self):
+    def __init__(self, weconnect: AddressableObject, fetcher: Fetcher, enableTracker: bool = False, fixAPI: bool = True):
         self.base_url = 'https://mobileapi.apps.emea.vwapps.io'
+        self.__vehicles: AddressableDict[str, Vehicle] = AddressableDict(localAddress='vehicles', parent=weconnect)
+        self.__stations: AddressableDict[str, ChargingStation] = AddressableDict(localAddress='chargingStations', parent=weconnect)
+        self.__fetcher: Fetcher = fetcher
+        self.__enableTracker: bool = enableTracker
+        self.fixAPI: bool = fixAPI
 
-        self.__vehicles: AddressableDict[str, Vehicle] = AddressableDict(localAddress='vehicles', parent=self)
-        self.__stations: AddressableDict[str, ChargingStation] = AddressableDict(localAddress='chargingStations', parent=self)
+    @property
+    def vehicles(self) -> AddressableDict[str, Vehicle]:
+        return self.__vehicles
+
+    @property
+    def stations(self) -> AddressableDict[str, ChargingStation]:
+        return self.__stations
 
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
-            selective: Optional[list[Domain]] = None) -> Tuple[AddressableDict[str, Vehicle], AddressableDict[str, ChargingStation]]:
+            selective: Optional[list[Domain]] = None) -> \
+                Tuple[AddressableDict[str, Vehicle], AddressableDict[str, ChargingStation]]:
         self.updateVehicles(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
         self.updateChargingStations(force=force)
         return (self.__vehicles, self.__stations)
@@ -29,7 +41,7 @@ class VwApi:
     def updateVehicles(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,  # noqa: C901
                        selective: Optional[list[Domain]] = None) -> None:
         url = f'{self.base_url}/vehicles'
-        data = self.fetchData(url, force)
+        data = self.__fetcher.fetchData(url, force)
         if data is not None:
             if 'data' in data and data['data']:
                 vins: List[str] = []
@@ -40,7 +52,7 @@ class VwApi:
                     vins.append(vin)
                     try:
                         if vin not in self.__vehicles:
-                            vehicle = Vehicle(weConnect=self, vin=vin, parent=self.__vehicles, fromDict=vehicleDict, fixAPI=self.fixAPI,
+                            vehicle = Vehicle(fetcher=self.__fetcher, vin=vin, parent=self.__vehicles, fromDict=vehicleDict, fixAPI=self.fixAPI,
                                               updateCapabilities=updateCapabilities, updatePictures=updatePictures, selective=selective,
                                               enableTracker=self.__enableTracker)
                             self.__vehicles[vin] = vehicle
@@ -53,8 +65,6 @@ class VwApi:
                 for vin in [vin for vin in self.__vehicles if vin not in vins]:
                     del self.__vehicles[vin]
 
-                self.__cache[url] = (data, str(datetime.utcnow()))
-
     def updateChargingStations(self, force: bool = False) -> None:  # noqa: C901 # pylint: disable=too-many-branches
         if self.latitude is not None and self.longitude is not None:
             url: str = f'{self.base_url}/charging-stations/v2?latitude={self.latitude}&longitude={self.longitude}'
@@ -64,9 +74,9 @@ class VwApi:
                 url += f'&locale={self.useLocale}'
             if self.searchRadius is not None:
                 url += f'&searchRadius={self.searchRadius}'
-            if self.__userId is not None:
-                url += f'&userId={self.__userId}'
-            data = self.fetchData(url, force)
+            if self.__fetcher.user_id is not None:
+                url += f'&userId={self.__fetcher.user_id}'
+            data = self.__fetcher.fetchData(url, force)
             if data is not None:
                 if 'chargingStations' in data and data['chargingStations']:
                     ids: List[str] = []
@@ -85,8 +95,6 @@ class VwApi:
                     for stationId in [stationId for stationId in ids if stationId not in self.__stations]:
                         del self.__stations[stationId]
 
-                    self.__cache[url] = (data, str(datetime.utcnow()))
-
     def getChargingStations(self, latitude, longitude, searchRadius=None, market=None, useLocale=None,  # noqa: C901
                             force=False) -> AddressableDict[str, ChargingStation]:
         chargingStationMap: AddressableDict[str, ChargingStation] = AddressableDict(localAddress='', parent=None)
@@ -97,9 +105,9 @@ class VwApi:
             url += f'&locale={useLocale}'
         if searchRadius is not None:
             url += f'&searchRadius={searchRadius}'
-        if self.__userId is not None:
-            url += f'&userId={self.__userId}'
-        data = self.fetchData(url, force)
+        if self.__fetcher.user_id is not None:
+            url += f'&userId={self.__fetcher.user_id}'
+        data = self.__fetcher.fetchData(url, force)
         if data is not None:
             if 'chargingStations' in data and data['chargingStations']:
                 for stationDict in data['chargingStations']:
@@ -109,6 +117,4 @@ class VwApi:
                     station: ChargingStation = ChargingStation(weConnect=self, stationId=stationId, parent=chargingStationMap, fromDict=stationDict,
                                                                fixAPI=self.fixAPI)
                     chargingStationMap[stationId] = station
-
-                self.__cache[url] = (data, str(datetime.utcnow()))
         return chargingStationMap

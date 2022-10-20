@@ -41,6 +41,7 @@ class SessionManager():
             self.tokenstore = {}
         self.sessions = {}
 
+    @staticmethod
     def generateHash(service: Service, sessionuser: SessionUser) -> str:
         hashstr = service.value + str(sessionuser)
         return hashlib.sha512(hashstr.encode()).hexdigest()

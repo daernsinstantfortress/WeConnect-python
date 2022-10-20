@@ -38,7 +38,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         updateCapabilities: bool = True,
         updatePictures: bool = True,
         numRetries: int = 3,
-        timeout: bool = None,
+        timeout: bool = False,
         selective: Optional[list[Domain]] = None,
         service = Service.WE_CONNECT
     ) -> None:
@@ -70,8 +70,8 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         # self.__session: requests.Session = requests.Session()
 
         # Entities
-        self.__vehicles: AddressableDict[str, VwVehicle|CupraVehicle] = AddressableDict(localAddress='vehicles', parent=self)
-        self.__stations: AddressableDict[str, VwChargingStation|CupraChargingStation] = AddressableDict(localAddress='chargingStations', parent=self)
+        # self.__vehicles: AddressableDict[str, VwVehicle|CupraVehicle] = AddressableDict(localAddress='vehicles', parent=self)
+        # self.__stations: AddressableDict[str, VwChargingStation|CupraChargingStation] = AddressableDict(localAddress='chargingStations', parent=self)
         
         self.fixAPI: bool = fixAPI
 
@@ -94,17 +94,17 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         self.__session.timeout = timeout
         self.__session.retries = numRetries
 
-        self._errorBus: ErrorBus = ErrorBus()
-        self._fetcher: Fetcher = Fetcher(session=self.__session, maxAge=maxAge, maxAgePictures=maxAgePictures, errorBus=ErrorBus())
+        self.__errorBus: ErrorBus = ErrorBus()
+        self.__fetcher: Fetcher = Fetcher(session=self.__session, maxAge=maxAge, maxAgePictures=maxAgePictures, errorBus=ErrorBus())
 
         if loginOnInit:
             self.__session.login()
 
         if service == Service.MY_CUPRA:
-            self._api = CupraApi(weconnect=self, fetcher=self._fetcher)
+            self.__api = CupraApi(weconnect=self, fetcher=self.__fetcher)
         else:
-            self._api = VwApi()
-        self._fetcher.base_url = self._api.base_url
+            self.__api = VwApi(weconnect=self, fetcher=self.__fetcher)
+        self.__fetcher.base_url = self.__api.base_url
 
         if updateAfterLogin:
             self.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, selective=selective)
@@ -114,17 +114,18 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         self.disconnect()
         return super().__del__()
 
-    # Public api used by weconnect-mqtt
-    def disconnect(self) -> None:
-        pass
-
     @property
     def session(self) -> OpenIDSession:
         return self.__session
 
     @property
     def cache(self) -> Dict[str, Any]:
-        return self._fetcher.cache
+        return self.__fetcher.cache
+
+    # Public api used by HA volkswagen_we_connect_id
+    @property
+    def vehicles(self) -> AddressableDict[str, VwVehicle|CupraVehicle]:
+        return self.__api.vehicles
 
     # Public api used by weconnect-mqtt
     def persistTokens(self) -> None:
@@ -134,30 +135,30 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
     # Public api used by weconnect-mqtt
     def enableTracker(self) -> None:
         self.__enableTracker = True
-        for vehicle in self.vehicles:
+        for vehicle in self.vehicles.values():
             vehicle.enableTracker()
 
     def disableTracker(self) -> None:
         self.__enableTracker = True
-        for vehicle in self.vehicles:
+        for vehicle in self.vehicles.values():
             vehicle.disableTracker()
 
     # Public api used by HA volkswagen_we_connect_id
     def login(self) -> None:
         self.__session.login()
 
-    # Public api used by HA volkswagen_we_connect_id
-    @property
-    def vehicles(self) -> AddressableDict[str, VwVehicle|CupraVehicle]:
-        return self.__vehicles
+    # Public api used by weconnect-mqtt
+    def disconnect(self) -> None:
+        pass
 
     # Public api used by weconnect-mqtt, HA volkswagen_we_connect_id
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
                selective: Optional[list[Domain]] = None) -> None:
         self.__elapsed.clear()
-        vehicles, charging_stations = self._api.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
-        self.__vehicles = vehicles
-        self.__stations = charging_stations
+        # vehicles, charging_stations = self._api.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
+        self.__api.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
+        # self.__vehicles = vehicles
+        # self.__stations = charging_stations
         self.updateComplete()
 
     def setChargingStationSearchParameters(self, latitude: float, longitude: float, searchRadius: Optional[int] = None, market: Optional[str] = None,
@@ -169,14 +170,14 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         self.useLocale = useLocale
 
     def getLeafChildren(self) -> List[AddressableLeaf]:
-        return [children for vehicle in self.__vehicles.values() for children in vehicle.getLeafChildren()] \
-            + [children for station in self.__stations.values() for children in station.getLeafChildren()]
+        return [children for vehicle in self.__api.vehicles.values() for children in vehicle.getLeafChildren()] \
+            + [children for station in self.__api.stations.values() for children in station.getLeafChildren()]
 
     def __str__(self) -> str:
         returnString: str = ''
-        for vin, vehicle in self.__vehicles.items():
+        for vin, vehicle in self.__api.vehicles.items():
             returnString += f'Vehicle: {vin}\n{vehicle}\n'
-        for stationId, station in sorted(self.__stations.items(), key=lambda x: x[1].distance.value, reverse=False):
+        for stationId, station in sorted(self.__api.stations.items(), key=lambda x: x[1].distance.value, reverse=False):
             returnString += f'Charging Station: {stationId}\n{station}\n'
         return returnString
 

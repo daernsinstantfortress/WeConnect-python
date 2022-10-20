@@ -122,6 +122,10 @@ class Fetcher:
     def cache(self) -> Dict[str, Any]:
         return self.__cache
 
+    @property
+    def errors(self): 
+        return self.__errorBus
+
     def persistCacheAsJson(self, filename: str) -> None:
         with open(filename, 'w', encoding='utf8') as file:
             json.dump(self.__cache, file, cls=ExtendedEncoder)

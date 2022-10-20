@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Set, Any, Type, Optional, cast, TYPE_CHECKING
+from typing import Dict, List, Set, Any, Type, Optional, cast
 import os
 from enum import Enum
 from datetime import datetime, timedelta
@@ -7,14 +7,12 @@ import base64
 import io
 import logging
 
-from weconnect.api.vw.elements.generic_settings import GenericSettings
-from weconnect.api.vw.elements.generic_status import GenericStatus
-
 from requests import exceptions, codes
 
+from weconnect.api.vw.elements.generic_settings import GenericSettings
+from weconnect.api.vw.elements.generic_status import GenericStatus
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
-if TYPE_CHECKING:
-    from weconnect.weconnect import WeConnect
+from weconnect.fetch import Fetcher
 from weconnect.api.vw.elements.generic_capability import GenericCapability
 from weconnect.api.vw.elements.generic_request_status import GenericRequestStatus
 from weconnect.api.vw.elements.controls import Controls
@@ -44,13 +42,11 @@ from weconnect.util import toBool
 from weconnect.weconnect_errors import ErrorEventType
 from weconnect.api.vw.domain import Domain
 from weconnect.api.vw.elements.error import Error
-
-# Cupra
 from weconnect.api.vw.elements.helpers.request_tracker import RequestTracker
 
 SUPPORT_IMAGES = False
 try:
-    from PIL import Image, ImageDraw  # type: ignore
+    from PIL import Image as PILImage, ImageDraw  # type: ignore
     SUPPORT_IMAGES = True
 except ImportError:
     pass
@@ -77,7 +73,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
 
     def __init__(
         self,
-        weConnect: WeConnect,
+        fetcher: Fetcher,
         vin: str,
         parent: AddressableDict[str, Vehicle],
         fromDict: Dict[str, Any],
@@ -87,34 +83,44 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         selective: Optional[list[Domain]] = None,
         enableTracker: bool = False
     ) -> None:
-        self.weConnect: WeConnect = weConnect
+        self.fetcher: Fetcher = fetcher
         super().__init__(localAddress=vin, parent=parent)
-        self.vin: AddressableAttribute[str] = AddressableAttribute(localAddress='vin', parent=self, value=None, valueType=str)
-        self.role: AddressableAttribute[Vehicle.User.Role] = AddressableAttribute(localAddress='role', parent=self, value=None, valueType=Vehicle.User.Role)
-        self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(localAddress='enrollmentStatus', parent=self,
-                                                                                                          value=None,
-                                                                                                          valueType=Vehicle.User.EnrollmentStatus)
-        self.userRoleStatus: AddressableAttribute[Vehicle.User.UserRoleStatus] = AddressableAttribute(localAddress='userRoleStatus', parent=self,
-                                                                                                      value=None,
-                                                                                                      valueType=Vehicle.User.UserRoleStatus)
-        self.model: AddressableAttribute[str] = AddressableAttribute(localAddress='model', parent=self, value=None, valueType=str)
-        self.devicePlatform: AddressableAttribute[Vehicle.DevicePlatform] = AddressableAttribute(localAddress='devicePlatform', parent=self,
-                                                                                                 value=None,
-                                                                                                 valueType=Vehicle.DevicePlatform)
-        self.nickname: AddressableAttribute[str] = AddressableAttribute(localAddress='nickname', parent=self, value=None, valueType=str)
-        self.brandCode: AddressableAttribute[str] = AddressableAttribute(localAddress='brandCode', parent=self, value=None, valueType=Vehicle.BrandCode)
-        self.capabilities: AddressableDict[str, GenericCapability] = AddressableDict(localAddress='capabilities', parent=self)
-        self.domains: AddressableDict[str, DomainDict[str, GenericStatus]] = AddressableDict(localAddress='domains', parent=self)
-        self.images: AddressableAttribute[Dict[str, str]] = AddressableAttribute(localAddress='images', parent=self, value=None, valueType=dict)
-        self.tags: AddressableAttribute[List[str]] = AddressableAttribute(localAddress='tags', parent=self, value=None, valueType=list)
-        self.coUsers: AddressableList[Vehicle.User] = AddressableList(localAddress='coUsers', parent=self)
-        self.controls: Controls = Controls(localAddress='controls', vehicle=self, parent=self)
+
+        self.vin: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='vin', parent=self, value=None, valueType=str)
+        self.role: AddressableAttribute[Vehicle.User.Role] = AddressableAttribute(
+            localAddress='role', parent=self, value=None, valueType=Vehicle.User.Role)
+        self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(
+            localAddress='enrollmentStatus', parent=self, value=None, valueType=Vehicle.User.EnrollmentStatus)
+        self.userRoleStatus: AddressableAttribute[Vehicle.User.UserRoleStatus] = AddressableAttribute(
+            localAddress='userRoleStatus', parent=self, value=None, valueType=Vehicle.User.UserRoleStatus)
+        self.model: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='model', parent=self, value=None, valueType=str)
+        self.devicePlatform: AddressableAttribute[Vehicle.DevicePlatform] = AddressableAttribute(
+            localAddress='devicePlatform', parent=self, value=None, valueType=Vehicle.DevicePlatform)
+        self.nickname: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='nickname', parent=self, value=None, valueType=str)
+        self.brandCode: AddressableAttribute[Vehicle.BrandCode] = AddressableAttribute(
+            localAddress='brandCode', parent=self, value=None, valueType=Vehicle.BrandCode)
+        self.capabilities: AddressableDict[str, GenericCapability] = AddressableDict(
+            localAddress='capabilities', parent=self)
+        self.domains: AddressableDict[str, DomainDict] = AddressableDict(
+            localAddress='domains', parent=self)
+        self.images: AddressableAttribute[Dict[str, str]] = AddressableAttribute(
+            localAddress='images', parent=self, value=None, valueType=dict)
+        self.tags: AddressableAttribute[List[str]] = AddressableAttribute(
+            localAddress='tags', parent=self, value=None, valueType=list)
+        self.coUsers: AddressableList[Vehicle.User] = AddressableList(
+            localAddress='coUsers', parent=self)
+        self.controls: Controls = Controls(
+            localAddress='controls', vehicle=self, parent=self)
+            
         self.fixAPI: bool = fixAPI
 
         if SUPPORT_IMAGES:
-            self.__carImages: Dict[str, Image.Image] = {}
-            self.__badges: Dict[Vehicle.Badge, Image.Image] = {}
-            self.pictures: AddressableDict[str, Image.Image] = AddressableDict(localAddress='pictures', parent=self)
+            self.__carImages: Dict[str, PILImage.Image] = {}
+            self.__badges: Dict[Vehicle.Badge, PILImage.Image] = {}
+            self.pictures: AddressableDict[str, PILImage.Image] = AddressableDict(localAddress='pictures', parent=self)
 
         self.requestTracker: Optional[RequestTracker] = None
         if enableTracker:
@@ -127,7 +133,8 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.requestTracker = RequestTracker(self)
 
     def disableTracker(self) -> None:
-        self.requestTracker.clear()
+        if self.requestTracker is not None:
+            self.requestTracker.clear()
         self.requestTracker = None
 
     def statusExists(self, domain: str, status: str) -> bool:
@@ -137,7 +144,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
 
     def update(  # noqa: C901  # pylint: disable=too-many-branches
         self,
-        fromDict: Dict[str, Any] = None,
+        fromDict: Dict[str, Any] = {},
         updateCapabilities: bool = True,
         updatePictures: bool = True,
         force: bool = False,
@@ -214,7 +221,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                               'coUsers']}.items():
                 LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
-        self.updateStatusCupra(updateCapabilities=updateCapabilities, force=force, selective=selective)
+        self.updateStatus(updateCapabilities=updateCapabilities, force=force, selective=selective)
         if SUPPORT_IMAGES and updatePictures:
             for badge in Vehicle.Badge:
                 badgeImg: Image = Image.open(f'{os.path.dirname(__file__)}/../badges/{badge.value}.png')
@@ -306,7 +313,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             jobs = [domain.value for domain in selective]
         
         url: str = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/selectivestatus?jobs=' + ','.join(jobs)
-        data: Optional[Dict[str, Any]] = self.weConnect.fetchData(url, force)
+        data: Optional[Dict[str, Any]] = self.fetcher.fetchData(url, force)
         if data is not None:
             for domain, keyClassMap in jobKeyClassMap.items():
                 if not updateCapabilities and domain == Domain.USER_CAPABILITIES:
@@ -341,7 +348,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         if (selective is None or any(x in selective for x in [Domain.ALL, Domain.ALL_CAPABLE, Domain.PARKING])) \
                 and (not updateCapabilities or ('parkingPosition' in self.capabilities and self.capabilities['parkingPosition'].status.value is None)):
             url = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/parkingposition'
-            data = self.weConnect.fetchData(url, force, allowEmpty=True, allowHttpError=True, allowedErrors=[codes['not_found'],
+            data = self.fetcher.fetchData(url, force, allowEmpty=True, allowHttpError=True, allowedErrors=[codes['not_found'],
                                                                                                              codes['no_content'],
                                                                                                              codes['bad_gateway'],
                                                                                                              codes['forbidden']])
@@ -364,235 +371,67 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                     parkingPosition.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
                     parkingPosition.carCapturedTimestamp.enabled = False
                     parkingPosition.enabled = False
-
-    def updateStatusCupra(self, updateCapabilities: bool = True, force: bool = False,  # noqa: C901 # pylint: disable=too-many-branches
-                selective: Optional[list[Domain]] = None):
-
-        jobKeyClassMap: Dict[Domain, Dict[str, Type[GenericStatus]]] = {
-            Domain.ACCESS: {
-                'accessStatus': AccessStatus
-            },
-            Domain.AUTOMATION: {
-                'climatisationTimer': ClimatizationTimer,
-                'climatisationTimersRequestStatus': GenericRequestStatus,
-                'chargingProfiles': ChargingProfiles,
-            },
-            Domain.USER_CAPABILITIES: {
-                'capabilitiesStatus': CapabilityStatus,
-            },
-            Domain.CHARGING: {
-                'batteryStatus': BatteryStatus,
-                'chargingStatus': ChargingStatus,
-                'chargingSettings': ChargingSettings,
-                'chargeMode': ChargeMode,
-                'plugStatus': PlugStatus,
-                'chargingRequestStatus': GenericRequestStatus,
-                'chargingSettingsRequestStatus': GenericRequestStatus,
-                'chargingCareSettings': GenericSettings,
-            },
-            Domain.CLIMATISATION: {
-                'climatisationStatus': ClimatizationStatus,
-                'climatisationSettings': ClimatizationSettings,
-                'windowHeatingStatus': WindowHeatingStatus,
-                'climatisationRequestStatus': GenericRequestStatus,
-                'climatisationSettingsRequestStatus': GenericRequestStatus,
-            },
-            Domain.FUEL_STATUS: {
-                'rangeStatus': RangeStatus,
-            },
-            Domain.VEHICLE_LIGHTS: {
-                'lightsStatus': LightsStatus,
-            },
-            Domain.LV_BATTERY: {
-                'lvBatteryStatus': LVBatteryStatus,
-            },
-            Domain.READINESS: {
-                'readinessStatus': ReadinessStatus,
-                'readinessBatterySupportStatus': GenericStatus,
-            },
-            Domain.VEHICLE_HEALTH_INSPECTION: {
-                'maintenanceStatus': MaintenanceStatus,
-            },
-            Domain.VEHICLE_HEALTH_WARNINGS: {
-                'warningLights': WarningLightsStatus,
-            },
-            Domain.OIL_LEVEL: {
-                'oilLevelStatus': GenericStatus,
-            },
-            Domain.MEASUREMENTS: {
-                'rangeStatus': RangeMeasurements,
-                'odometerStatus': OdometerMeasurement,
-                'oilLevelStatus': GenericStatus,
-                'measurements': GenericStatus,
-                # Cupra Born
-                'mileageKm': OdometerMeasurement,
-            },
-            Domain.BATTERY_SUPPORT: {
-                'batterySupportStatus': GenericStatus,
-            },
-            # Cupra
-            Domain.SERVICES: {
-                'charging': ChargingStatus,
-                # Needs fixed for Cupra
-                # 'climatisation': ClimatizationStatus
-            },
-            Domain.ENGINES: {
-                'primary': EngineStateCupra
-            }
-        }
-
-
-        if self.vin.value is None:
-            raise APIError('VIN value is not set')
-        if selective is None:
-            jobs = [domain.value for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE and domain != Domain.PARKING]
-        elif Domain.ALL_CAPABLE in selective:
-            if self.capabilities:
-                jobs = []
-                for dom in [domain for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE and domain != Domain.PARKING]:
-                    if dom.value in self.capabilities and self.capabilities[dom.value].enabled and not self.capabilities[dom.value].status.enabled:
-                        jobs.append(dom.value)
-                if updateCapabilities:
-                    jobs.append(Domain.USER_CAPABILITIES.value)
-            else:
-                jobs = ['all']
-        elif Domain.ALL in selective:
-            jobs = ['all']
-        else:
-            jobs = [domain.value for domain in selective]
-
-        # Alan        
-        # url: str = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/selectivestatus?jobs=' + ','.join(jobs)
-        url: str = f'{self.weConnect.base_url}/v2/users/{self.weConnect.session.user_id}/vehicles/{self.vin.value}/mycar'
-        print(url)
-
-        data: Optional[Dict[str, Any]] = self.weConnect.fetchData(url, force)
-
-        # Alan
-        from pprint import pprint
-        pprint(data)
-
-        if data is not None:
-            # Iterate over top-level items in data dict
-            for domain, keyClassMap in jobKeyClassMap.items():
-                if not updateCapabilities and domain == Domain.USER_CAPABILITIES:
-                    continue
-                if domain.value in data:
-                    if domain.value not in self.domains:
-                        self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
-                    
-                    for key, className in keyClassMap.items():
-                        if key in data[domain.value]:
-                            if key in self.domains[domain.value]:
-                                LOG.debug('Status %s exists, updating it', key)
-                                self.domains[domain.value][key].update(fromDict=data[domain.value][key])
-                            else:
-                                LOG.debug('Status %s does not exist, creating it', key)
-                                self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
-                                                                            fromDict=data[domain.value][key], fixAPI=self.fixAPI)
-                    if 'error' in data[domain.value]:
-                        self.domains[domain.value].updateError(data[domain.value])
-
-                    # check that there is no additional status than the configured ones, except for "target" that we merge into
-                    # the known ones
-                    for key, value in {key: value for key, value in data[domain.value].items()
-                                       if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
-                        LOG.warning('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
-            # check that there is no additional domain than the configured ones
-            for key, value in {key: value for key, value in data.items() if key not in list([domain.value for domain in jobKeyClassMap.keys()])}.items():
-                LOG.warning('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
-
-        # Controls
-        self.controls.update()
-
-        if (selective is None or any(x in selective for x in [Domain.ALL, Domain.ALL_CAPABLE, Domain.PARKING])) \
-                and (not updateCapabilities or ('parkingPosition' in self.capabilities and self.capabilities['parkingPosition'].status.value is None)):
-            url = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/parkingposition'
-            data = self.weConnect.fetchData(url, force, allowEmpty=True, allowHttpError=True, allowedErrors=[codes['not_found'],
-                                                                                                             codes['no_content'],
-                                                                                                             codes['bad_gateway'],
-                                                                                                             codes['forbidden']])
-
-            if data is not None:
-                if 'parking' not in self.domains:
-                    self.domains['parking'] = DomainDict(localAddress='parking', parent=self)
-                if 'parkingPosition' in self.domains['parking']:
-                    self.domains['parking']['parkingPosition'].update(fromDict=data)
-                else:
-                    self.domains['parking']['parkingPosition'] = ParkingPosition(vehicle=self,
-                                                                                 parent=self.domains['parking'],
-                                                                                 statusId='parkingPosition',
-                                                                                 fromDict=data)
-            else:
-                if self.statusExists('parking', 'parkingPosition'):
-                    parkingPosition: ParkingPosition = cast(ParkingPosition, self.domains['parking']['parkingPosition'])
-                    parkingPosition.latitude.enabled = False
-                    parkingPosition.longitude.enabled = False
-                    parkingPosition.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
-                    parkingPosition.carCapturedTimestamp.enabled = False
-                    parkingPosition.enabled = False
-
 
     def updatePictures(self) -> None:  # noqa: C901
         if not SUPPORT_IMAGES:
             return
         url: str = f'https://vehicle-images-service.apps.emea.vwapps.io/v2/vehicle-images/{self.vin.value}?resolution=2x'
-        data = self.weConnect.fetchData(url, allowHttpError=True)
+        data = self.fetcher.fetchData(url, allowHttpError=True)
         if data is not None and 'data' in data:  # pylint: disable=too-many-nested-blocks
             for image in data['data']:
                 img = None
                 cacheDate = None
                 imageurl: str = image['url']
-                if self.weConnect.maxAgePictures is not None and self.weConnect.cache is not None and imageurl in self.weConnect.cache:
-                    img, cacheDateString = self.weConnect.cache[imageurl]
+                if self.fetcher.maxAgePictures is not None and self.fetcher.cache is not None and imageurl in self.fetcher.cache:
+                    img, cacheDateString = self.fetcher.cache[imageurl]
                     img = base64.b64decode(img)
-                    img = Image.open(io.BytesIO(img))
+                    img = PILImage.open(io.BytesIO(img))
                     cacheDate = datetime.fromisoformat(cacheDateString)
-                if img is None or self.weConnect.maxAgePictures is None \
-                        or (cacheDate is not None and cacheDate < (datetime.utcnow() - timedelta(seconds=self.weConnect.maxAgePictures))):
+                if img is None or self.fetcher.maxAgePictures is None \
+                        or (cacheDate is not None and cacheDate < (datetime.utcnow() - timedelta(seconds=self.fetcher.maxAgePictures))):
                     try:
-                        imageDownloadResponse = self.weConnect.session.get(imageurl, stream=True)
-                        self.weConnect.recordElapsed(imageDownloadResponse.elapsed)
+                        imageDownloadResponse = self.fetcher.session.get(imageurl, stream=True)
+                        self.fetcher.recordElapsed(imageDownloadResponse.elapsed)
                         if imageDownloadResponse.status_code == codes['ok']:
-                            img = Image.open(imageDownloadResponse.raw)
-                            if self.weConnect.cache is not None:
+                            img = PILImage.open(imageDownloadResponse.raw)
+                            if self.fetcher.cache is not None:
                                 buffered = io.BytesIO()
                                 img.save(buffered, format="PNG")
                                 imgStr = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                                self.weConnect.cache[imageurl] = (imgStr, str(datetime.utcnow()))
+                                self.fetcher.cache[imageurl] = (imgStr, str(datetime.utcnow()))
                         elif imageDownloadResponse.status_code == codes['unauthorized']:
                             LOG.info('Server asks for new authorization')
-                            self.weConnect.login()
-                            imageDownloadResponse = self.weConnect.session.get(imageurl, stream=True)
-                            self.weConnect.recordElapsed(imageDownloadResponse.elapsed)
+                            self.fetcher.session.login()
+                            imageDownloadResponse = self.fetcher.session.get(imageurl, stream=True)
+                            self.fetcher.recordElapsed(imageDownloadResponse.elapsed)
                             if imageDownloadResponse.status_code == codes['ok']:
-                                img = Image.open(imageDownloadResponse.raw)
-                                if self.weConnect.cache is not None:
+                                img = PILImage.open(imageDownloadResponse.raw)
+                                if self.fetcher.cache is not None:
                                     buffered = io.BytesIO()
                                     img.save(buffered, format="PNG")
                                     imgStr = base64.b64encode(buffered.getvalue()).decode("utf-8")
-                                    self.weConnect.cache[imageurl] = (imgStr, str(datetime.utcnow()))
+                                    self.fetcher.cache[imageurl] = (imgStr, str(datetime.utcnow()))
                             else:
-                                self.weConnect.notifyError(self, ErrorEventType.HTTP, str(imageDownloadResponse.status_code),
+                                self.fetcher.errors.notifyError(self, ErrorEventType.HTTP, str(imageDownloadResponse.status_code),
                                                            'Could not fetch vehicle image due to server error')
                                 raise RetrievalError('Could not retrieve vehicle image even after re-authorization.'
                                                      f' Status Code was: {imageDownloadResponse.status_code}')
-                            self.weConnect.notifyError(self, ErrorEventType.HTTP, str(imageDownloadResponse.status_code),
+                            self.fetcher.errors.notifyError(self, ErrorEventType.HTTP, str(imageDownloadResponse.status_code),
                                                        'Could not fetch vehicle image due to server error')
                             raise RetrievalError(f'Could not retrieve vehicle image. Status Code was: {imageDownloadResponse.status_code}')
                         else:
                             LOG.warning('Failed downloading picture %s with status code %d will try again in next update', image['id'],
                                         imageDownloadResponse.status_code)
                     except exceptions.ConnectionError as connectionError:
-                        self.weConnect.notifyError(self, ErrorEventType.CONNECTION, 'connection',
+                        self.fetcher.errors.notifyError(self, ErrorEventType.CONNECTION, 'connection',
                                                    'Could not fetch vehicle image due to connection problem')
                         raise RetrievalError from connectionError
                     except exceptions.ChunkedEncodingError as chunkedEncodingError:
-                        self.weConnect.notifyError(self, ErrorEventType.CONNECTION, 'chunked encoding error',
+                        self.fetcher.errors.notifyError(self, ErrorEventType.CONNECTION, 'chunked encoding error',
                                                    'Could not refresh token due to connection problem with chunked encoding')
                         raise RetrievalError from chunkedEncodingError
                     except exceptions.ReadTimeout as timeoutError:
-                        self.weConnect.notifyError(self, ErrorEventType.TIMEOUT, 'timeout', 'Could not fetch vehicle image due to timeout')
+                        self.fetcher.errors.notifyError(self, ErrorEventType.TIMEOUT, 'timeout', 'Could not fetch vehicle image due to timeout')
                         raise RetrievalError from timeoutError
                     except exceptions.RetryError as retryError:
                         raise RetrievalError from retryError
@@ -604,7 +443,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                             self.pictures['car'].setValueWithCarTime(self.__carImages['car_34view'], lastUpdateFromCar=None, fromServer=True)
                         else:
                             self.pictures['car'] = AddressableAttribute(localAddress='car', parent=self.pictures, value=self.__carImages['car_34view'],
-                                                                        valueType=Image.Image)
+                                                                        valueType=PILImage.Image)
 
             self.updateStatusPicture()
 
@@ -612,7 +451,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         if not SUPPORT_IMAGES:
             return
         if 'car_birdview' in self.__carImages:
-            img: Image = self.__carImages['car_birdview']
+            img: PILImage.Image = self.__carImages['car_birdview']
 
             badges: Set[Vehicle.Badge] = set()
 
@@ -766,7 +605,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                 draw = ImageDraw.Draw(carWithBadges)
                                 draw.ellipse(((imgWidth - 100), warningLightoffset, (imgWidth - 1), (warningLightoffset + 100)), fill=(0, 0, 0, 200))
                                 lightImage = warningLight.icon.value
-                                lightImage = lightImage.resize((64, 64), Image.ANTIALIAS)
+                                lightImage = lightImage.resize((64, 64), PILImage.ANTIALIAS)
                                 carWithBadges.paste(lightImage, ((imgWidth - 82), warningLightoffset + 18), lightImage)
                                 warningLightoffset += 110
 
@@ -785,8 +624,8 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 self.pictures['status'].enabled = False
         else:
             if 'status' in self.__carImages:
-                self.pictures['status'] = AddressableAttribute(localAddress='status', parent=self.pictures, value=self.__carImages['status'],
-                                                               valueType=Image.Image)
+                self.pictures['status'] = AddressableAttribute(
+                    localAddress='status', parent=self.pictures, value=self.__carImages['status'], valueType=PILImage.Image)
 
         if 'statusWithBadge' in self.pictures:
             if 'statusWithBadge' in self.__carImages:
@@ -798,7 +637,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             if 'statusWithBadge' in self.__carImages:
                 self.pictures['statusWithBadge'] = AddressableAttribute(localAddress='statusWithBadge', parent=self.pictures,
                                                                         value=self.__carImages['statusWithBadge'],
-                                                                        valueType=Image.Image)
+                                                                        valueType=PILImage.Image)
 
         if 'carWithBadge' in self.pictures:
             if 'carWithBadge' in self.__carImages:
@@ -810,7 +649,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             if 'carWithBadge' in self.__carImages:
                 self.pictures['carWithBadge'] = AddressableAttribute(localAddress='carWithBadge', parent=self.pictures,
                                                                      value=self.__carImages['carWithBadge'],
-                                                                     valueType=Image.Image)
+                                                                     valueType=PILImage.Image)
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''
@@ -880,15 +719,14 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self,
             localAddress: str,
             parent: AddressableObject,
-            fromDict: Dict[str, str] = None,
+            fromDict: Dict[str, str] = {},
         ) -> None:
             super().__init__(localAddress=localAddress, parent=parent)
             self.id: AddressableAttribute[str] = AddressableAttribute(localAddress='id', parent=self, value=None, valueType=str)
             self.role: AddressableAttribute[Vehicle.User.Role] = AddressableAttribute(localAddress='role', parent=self, value=None, valueType=Vehicle.User.Role)
             self.roleReseted: AddressableAttribute[bool] = AddressableAttribute(localAddress='roleReseted', parent=self, value=None, valueType=bool)
-            self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(localAddress='enrollmentStatus', parent=self,
-                                                                                                              value=None,
-                                                                                                              valueType=Vehicle.User.CupraEnrollmentStatus)
+            self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(
+                localAddress='enrollmentStatus', parent=self, value=None, valueType=Vehicle.User.EnrollmentStatus)
 
             if fromDict is not None:
                 self.update(fromDict)
@@ -954,15 +792,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             GDC_MISSING = 'GDC_MISSING'
             INACTIVE = 'INACTIVE'
             UNKNOWN = 'UNKNOWN'
-
-        class CupraEnrollmentStatus(Enum,):
-            STARTED = 'started'
-            NOT_STARTED = 'not_started'
-            COMPLETED = 'completed'
-            GDC_MISSING = 'gdc_missing'
-            INACTIVE = 'inactive'
-            UNKNOWN = 'unknown'
-
 
         class UserRoleStatus(Enum,):
             ENABLED = 'ENABLED'

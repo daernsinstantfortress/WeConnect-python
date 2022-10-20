@@ -1,10 +1,6 @@
 from __future__ import annotations
-from typing import Dict, List, Set, Any, Type, Optional, cast, TYPE_CHECKING
-import os
+from typing import Dict, List, Any, Type, Optional
 from enum import Enum
-from datetime import datetime, timedelta
-import base64
-import io
 import logging
 
 from requests import codes
@@ -104,7 +100,8 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.requestTracker = RequestTracker(self)
 
     def disableTracker(self) -> None:
-        self.requestTracker.clear()
+        if self.requestTracker is not None:
+            self.requestTracker.clear()
         self.requestTracker = None
 
     def statusExists(self, domain: str, status: str) -> bool:
@@ -382,7 +379,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.enrollmentStatus: AddressableAttribute[Vehicle.User.EnrollmentStatus] = AddressableAttribute(
                 localAddress='enrollmentStatus', parent=self,
                 value=None,
-                valueType=Vehicle.User.CupraEnrollmentStatus)
+                valueType=Vehicle.User.EnrollmentStatus)
 
             if fromDict is not None:
                 self.update(fromDict)
@@ -442,14 +439,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 return self.value
 
         class EnrollmentStatus(Enum,):
-            STARTED = 'STARTED'
-            NOT_STARTED = 'NOT_STARTED'
-            COMPLETED = 'COMPLETED'
-            GDC_MISSING = 'GDC_MISSING'
-            INACTIVE = 'INACTIVE'
-            UNKNOWN = 'UNKNOWN'
-
-        class CupraEnrollmentStatus(Enum,):
             STARTED = 'started'
             NOT_STARTED = 'not_started'
             COMPLETED = 'completed'
