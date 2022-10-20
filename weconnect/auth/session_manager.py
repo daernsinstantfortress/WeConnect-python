@@ -1,15 +1,18 @@
-from enum import Enum
 
 import hashlib
 
 import json
 import logging
 
-from requests import Session
+# from requests import Session
 
-from weconnect.auth.we_connect_session import WeConnectSession
-from weconnect.auth.we_charge_session import WeChargeSession
-from weconnect.auth.my_cupra_session import MyCupraSession
+from weconnect.auth.openid_session import OpenIDSession
+from weconnect.service import Service
+# VW specific
+from weconnect.api.vw.auth.we_connect_session import WeConnectSession
+from weconnect.api.vw.auth.we_charge_session import WeChargeSession
+# Cupra specific
+from weconnect.api.cupra.auth.my_cupra_session import MyCupraSession
 
 LOG = logging.getLogger("weconnect")
 
@@ -21,16 +24,6 @@ class SessionUser():
 
     def __str__(self) -> str:
         return f'{self.username}:{self.password}'
-
-
-class Service(Enum):
-    WE_CONNECT = 'WeConnect'
-    WE_CHARGE = 'WeCharge'
-    MY_CUPRA = 'MyCupra'
-
-    def __str__(self) -> str:
-        return self.value
-
 
 class SessionManager():
     def __init__(self, tokenstorefile=None) -> None:
@@ -52,7 +45,7 @@ class SessionManager():
         hashstr = service.value + str(sessionuser)
         return hashlib.sha512(hashstr.encode()).hexdigest()
 
-    def getSession(self, service: Service, sessionuser: SessionUser) -> Session:
+    def getSession(self, service: Service, sessionuser: SessionUser) -> OpenIDSession:
         session = None
         if (service, sessionuser) in self.sessions:
             return self.sessions[(service, sessionuser)]
