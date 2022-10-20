@@ -2,12 +2,12 @@ from enum import Enum
 import logging
 
 from weconnect.addressable import AddressableAttribute
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.api.cupra.elements.generic_status import GenericStatus
 
 LOG = logging.getLogger("weconnect")
 
 
-class EngineStateCupra(GenericStatus):
+class EngineState(GenericStatus):
     def __init__(
         self,
         vehicle,
@@ -20,13 +20,13 @@ class EngineStateCupra(GenericStatus):
             localAddress='type', 
             value=None, 
             parent=self, 
-            valueType=EngineStateCupra.EngineType
+            valueType=EngineState.EngineType
         )
         self.fuelType = AddressableAttribute(
             localAddress='fuelType', 
             value=None, 
             parent=self, 
-            valueType=EngineStateCupra.FuelType
+            valueType=EngineState.FuelType
         )
         self.level = AddressableAttribute(
             localAddress='level', 

@@ -46,8 +46,6 @@ from weconnect.api.vw.domain import Domain
 from weconnect.api.vw.elements.error import Error
 
 # Cupra
-from weconnect.api.vw.elements.engine_state_cupra import EngineStateCupra
-
 from weconnect.api.vw.elements.helpers.request_tracker import RequestTracker
 
 SUPPORT_IMAGES = False

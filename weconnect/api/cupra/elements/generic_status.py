@@ -33,7 +33,7 @@ class GenericStatus(AddressableObject):
             localAddress='carCapturedTimestamp', parent=self, value=None, valueType=datetime)
         self.error: Error = Error(localAddress='error', parent=self)
         self.requests: AddressableDict[GenericStatus.Request] = AddressableDict(localAddress='request', parent=self)
-
+        self.fromDict = fromDict
         if fromDict is not None:
             self.update(fromDict=fromDict)
 

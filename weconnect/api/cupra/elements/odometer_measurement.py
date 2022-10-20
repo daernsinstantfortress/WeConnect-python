@@ -55,5 +55,5 @@ class OdometerMeasurement(GenericStatus):
     def __str__(self):
         string = super().__str__()
         if self.odometer.enabled:
-            string += f'\n\tOdometer: {self.odometer.value}km'
+            string += f'\n\tOdometer: {self.odometer.value} km'
         return string

@@ -544,6 +544,8 @@ L = TypeVar('L', bound=AddressableLeaf)
 class AddressableDict(AddressableObject, Dict[T, L]):
     def __setitem__(self, key: T, item: L):
         self.addChild(item)
+        # item.parent = self
+        # item.enabled = True
         retVal = super().setdefault(key, item)
         if not self.enabled:
             self.enabled = True

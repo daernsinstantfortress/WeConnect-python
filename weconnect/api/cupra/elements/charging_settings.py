@@ -23,6 +23,7 @@ class ChargingSettings(GenericSettings):
         self.autoUnlockPlugWhenChargedAC = ChangeableAttribute(localAddress='autoUnlockPlugWhenChargedAC', value=None,
                                                                parent=self, valueType=UnlockPlugState)
         self.targetSOC_pct = ChangeableAttribute(localAddress='targetSOC_pct', value=None, parent=self, valueType=int)
+        
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
 
         self.maxChargeCurrentAC.addObserver(self.valueChanged, AddressableLeaf.ObserverEvent.VALUE_CHANGED,

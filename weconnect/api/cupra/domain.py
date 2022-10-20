@@ -9,5 +9,8 @@ class Domain(Enum):
     SERVICES = 'services'
     ENGINES = 'engines'
 
+    # Standard domains from VW api
+    CHARGING = 'charging'
+
     def __str__(self):
         return self.value

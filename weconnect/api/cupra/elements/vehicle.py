@@ -18,13 +18,14 @@ from weconnect.api.cupra.elements.parking_position import ParkingPosition
 from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
 from weconnect.api.cupra.elements.error import Error
 from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
+from weconnect.api.cupra.elements.battery_status import BatteryStatus
 from weconnect.errors import APICompatibilityError, APIError
 from weconnect.util import toBool
 from weconnect.api.cupra.domain import Domain
 from weconnect.fetch import Fetcher
 
 # Cupra
-from weconnect.api.vw.elements.engine_state_cupra import EngineStateCupra
+from weconnect.api.cupra.elements.engine_state import EngineState
 
 LOG: logging.Logger = logging.getLogger("weconnect")
 
@@ -32,7 +33,7 @@ LOG: logging.Logger = logging.getLogger("weconnect")
 class DomainDict(AddressableDict):
     def __init__(self, **kwargs):
         self.error: Error = Error(localAddress='error', parent=self)
-        super(DomainDict, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def updateError(self, fromDict: Dict[str, Any]):
         if 'error' in fromDict:
@@ -80,7 +81,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             localAddress='brandCode', parent=self, value=None, valueType=Vehicle.BrandCode)
         self.capabilities: AddressableDict[str, GenericCapability] = AddressableDict(
             localAddress='capabilities', parent=self)
-        self.domains: AddressableDict[str, DomainDict[str, GenericStatus]] = AddressableDict(
+        self.domains: AddressableDict[str, DomainDict] = AddressableDict(
             localAddress='domains', parent=self)
         self.images: AddressableAttribute[Dict[str, str]] = AddressableAttribute(
             localAddress='images', parent=self, value=None, valueType=dict)
@@ -199,13 +200,21 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             Domain.MEASUREMENTS: {
                 'mileageKm': OdometerMeasurement,
             },
+
+            # We will map cupra values to these standard ones
+            Domain.CHARGING: {
+                'batteryStatus': BatteryStatus,
+                'chargingStatus': ChargingStatus
+            },
+
+            # Cupra only
             Domain.SERVICES: {
-                'charging': ChargingStatus,
+                'charging': ChargingStatus,     # -> Domain.CHARGING chargingStatus
                 # TODO Needs fixed for Cupra
                 # 'climatisation': ClimatizationStatus
             },
             Domain.ENGINES: {
-                'primary': EngineStateCupra
+                'primary': EngineState
             }
         }
 
@@ -230,16 +239,21 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         
         url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
         data: Optional[Dict[str, Any]] = self.fetcher.fetchData(url, force)
+        
+        from pprint import pprint
+        pprint(data)
+
         if data is not None:
             # Iterate over top-level items in data dict
             for domain, keyClassMap in jobKeyClassMap.items():
                 if not updateCapabilities and domain == Domain.USER_CAPABILITIES:
                     continue
-                if domain.value in data:
-                    if domain.value not in self.domains:
-                        self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
-                    
-                    for key, className in keyClassMap.items():
+                # if domain.value in data:
+                if domain.value not in self.domains:
+                    self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
+                
+                for key, className in keyClassMap.items():
+                    if domain.value in data:
                         if key in data[domain.value]:
                             if key in self.domains[domain.value]:
                                 LOG.debug('Status %s exists, updating it', key)
@@ -248,14 +262,27 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                 LOG.debug('Status %s does not exist, creating it', key)
                                 self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
                                                                             fromDict=data[domain.value][key], fixAPI=self.fixAPI)
+                    else:
+                        # Make a placeholder that we can overwrite later
+                        # if key in self.domains[domain.value]:
+                        self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
+                                                                            fromDict={}, fixAPI=self.fixAPI)
+                        # else:
+                        #     self.domains[domain.value] = { key: None }
+                if domain.value in data:
                     if 'error' in data[domain.value]:
                         self.domains[domain.value].updateError(data[domain.value])
 
-                    # check that there is no additional status than the configured ones, except for "target" that we merge into
-                    # the known ones
-                    for key, value in {key: value for key, value in data[domain.value].items()
-                                       if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
-                        LOG.warning('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
+                # check that there is no additional status than the configured ones, except for "target" that we merge into
+                # the known ones
+                # for key, value in {key: value for key, value in data[domain.value].items()
+                #                     if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
+                #     LOG.warning('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
+                # else:
+                #     # Make a placeholder that we can overwrite later
+                #     if domain.value not in self.domains:
+                #         self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
+
             # check that there is no additional domain than the configured ones
             for key, value in {key: value for key, value in data.items() if key not in list([domain.value for domain in jobKeyClassMap.keys()])}.items():
                 LOG.warning('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
@@ -263,32 +290,20 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         # Controls
         self.controls.update()
 
-        if (selective is None or any(x in selective for x in [Domain.ALL, Domain.ALL_CAPABLE])) \
-                and (not updateCapabilities or ('parkingPosition' in self.capabilities and self.capabilities['parkingPosition'].status.value is None)):
-            url = 'https://mobileapi.apps.emea.vwapps.io/vehicles/' + self.vin.value + '/parkingposition'
-            data = self.fetcher.fetchData(url, force, allowEmpty=True, allowHttpError=True, allowedErrors=[codes['not_found'],
-                                                                                                             codes['no_content'],
-                                                                                                             codes['bad_gateway'],
-                                                                                                             codes['forbidden']])
+        # HACK map Cupra values back to VW values
+        charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
+        engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
+        self.domains[Domain.CHARGING.value]['chargingStatus'].update(charging_dict)
+        self.domains[Domain.CHARGING.value]['chargingStatus'].enabled = True
+        
+        self.domains[Domain.CHARGING.value]['batteryStatus'].update({
+            'value': {
+                'currentSOC_pct': charging_dict['progressBarPct'],
+                'cruisingRangeElectric_km': engines_dict['range']['value']
+            }
+        })
+        self.domains[Domain.CHARGING.value]['batteryStatus'].enabled = True
 
-            if data is not None:
-                if 'parking' not in self.domains:
-                    self.domains['parking'] = DomainDict(localAddress='parking', parent=self)
-                if 'parkingPosition' in self.domains['parking']:
-                    self.domains['parking']['parkingPosition'].update(fromDict=data)
-                else:
-                    self.domains['parking']['parkingPosition'] = ParkingPosition(vehicle=self,
-                                                                                 parent=self.domains['parking'],
-                                                                                 statusId='parkingPosition',
-                                                                                 fromDict=data)
-            else:
-                if self.statusExists('parking', 'parkingPosition'):
-                    parkingPosition: ParkingPosition = cast(ParkingPosition, self.domains['parking']['parkingPosition'])
-                    parkingPosition.latitude.enabled = False
-                    parkingPosition.longitude.enabled = False
-                    parkingPosition.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
-                    parkingPosition.carCapturedTimestamp.enabled = False
-                    parkingPosition.enabled = False
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''

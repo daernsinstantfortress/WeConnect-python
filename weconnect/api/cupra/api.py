@@ -29,14 +29,16 @@ class CupraApi:
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
             selective: Optional[list[Domain]] = None) -> Tuple[AddressableDict[str, Vehicle], AddressableDict[str, ChargingStation]]:
         self.updateVehicles(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
-        # TODO not supported yet
-        # self.updateChargingStations(force=force)
         return (self.__vehicles, self.__stations)
 
     def updateVehicles(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,  # noqa: C901
                        selective: Optional[list[Domain]] = None) -> None:        
         url = f'{self.base_url}/v1/users/{self.__fetcher.user_id}/garage/vehicles'
         data = self.__fetcher.fetchData(url, force)
+        
+        from pprint import pprint
+        pprint(data)
+
         if data is not None and 'vehicles' in data and data['vehicles']:
             vins: List[str] = []
             for vehicleDict in data['vehicles']:
