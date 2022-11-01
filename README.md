@@ -10,7 +10,7 @@
 [![Donate at PayPal](https://img.shields.io/badge/Donate-PayPal-2997d8)](https://www.paypal.com/donate?hosted_button_id=2BVFF5GJ9SXAJ)
 [![Sponsor at Github](https://img.shields.io/badge/Sponsor-GitHub-28a745)](https://github.com/sponsors/tillsteinbach)
 
-Python API for the Volkswagen WeConnect Services. If you are not a developer and ended up here you probably want to check out a project using this library (see below).
+Python API for the Volkswagen WeConnect and Cupra MyCupra Services. If you are not a developer and ended up here you probably want to check out a project using this library (see below).
 
 ## Projects in which the library is used
 - [VWsFriend](https://github.com/tillsteinbach/VWsFriend): VWsFriend records statistics about your car (charging sessions, battery, trips, fueling, etc.) and displays them nicely. It also allows you to forward data from the car to other applications such as [A better routeplanner](https://abetterrouteplanner.com/) and allows you to integrate your car into [Apple HomeKit](https://www.apple.com/ios/home/)
@@ -28,6 +28,7 @@ pip3 install weconnect[Images]
 ## Tested with
 - Volkswagen ID.3 Modelyear 2021
 - Volkswagen Passat GTE Modelyear 2021
+- Cupra Born Modelyear 2022
 
 ## Login & Consent
 WeConnect-python is based on the new WeConnect ID API that was introduced with the new series of ID cars. If you use another car or hybrid you probably need to agree to the terms and conditions of the WeConnect ID interface. Easiest to do so is by installing the WeConnect ID app on your smartphone and login there. If necessary you will be asked to agree to the terms and conditions.
