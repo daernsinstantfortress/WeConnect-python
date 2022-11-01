@@ -28,6 +28,10 @@ class ParkingPosition(GenericStatus):
             fromDict['value'] = fromDict['data']
             del fromDict['data']
 
+        # Cupra ?
+        # if 'value' not in fromDict:
+        #     fromDict['value'] = fromDict
+
         if 'value' in fromDict:
             self.latitude.fromDict(fromDict['value'], 'lat')
             self.longitude.fromDict(fromDict['value'], 'lon')

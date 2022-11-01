@@ -39,6 +39,10 @@ class ChargingSettings(GenericSettings):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update Charging settings from dict')
 
+        # Cupra
+        if 'value' not in fromDict:
+            fromDict['value'] = fromDict
+
         if 'value' in fromDict:
             self.maxChargeCurrentAC.fromDict(fromDict['value'], 'maxChargeCurrentAC')
             self.autoUnlockPlugWhenCharged.fromDict(fromDict['value'], 'autoUnlockPlugWhenCharged')

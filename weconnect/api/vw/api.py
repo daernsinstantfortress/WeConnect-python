@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Optional
 import logging
-from datetime import datetime
+import locale
 
 from weconnect.addressable import AddressableDict, AddressableObject
 from weconnect.errors import RetrievalError
@@ -22,6 +22,17 @@ class VwApi:
         self.__fetcher: Fetcher = fetcher
         self.__enableTracker: bool = enableTracker
         self.fixAPI: bool = fixAPI
+
+        # Used for charging station support
+        # Public api used by weconnect-mqtt
+        self.latitude: Optional[float] = None
+        # Public api used by weconnect-mqtt
+        self.longitude: Optional[float] = None
+        # Public api used by weconnect-mqtt
+        self.searchRadius: Optional[int] = None
+        self.market: Optional[str] = None
+        self.useLocale: Optional[str] = locale.getlocale()[0]
+
 
     @property
     def vehicles(self) -> AddressableDict[str, Vehicle]:
@@ -118,3 +129,11 @@ class VwApi:
                                                                fixAPI=self.fixAPI)
                     chargingStationMap[stationId] = station
         return chargingStationMap
+
+    def setChargingStationSearchParameters(self, latitude: float, longitude: float, searchRadius: Optional[int] = None, market: Optional[str] = None,
+                                           useLocale: Optional[str] = locale.getlocale()[0]) -> None:
+        self.latitude = latitude
+        self.longitude = longitude
+        self.searchRadius = searchRadius
+        self.market = market
+        self.useLocale = useLocale

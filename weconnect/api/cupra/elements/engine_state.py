@@ -57,10 +57,10 @@ class EngineState(GenericStatus):
 
     def __str__(self):
         string = super().__str__()
-        string += f'\n\t(Cupra) Engine Type: {self.type.value}'
-        string += f'\n\t(Cupra) Fuel Type: {self.fuelType.value}'
-        string += f'\n\t(Cupra) Fuel Level: {self.level.value}'
-        string += f'\n\t(Cupra) Range: {self.range.value} {self.rangeUnit.value}'
+        string += f'\n\tEngine Type: {self.type.value}'
+        string += f'\n\tFuel Type: {self.fuelType.value}'
+        string += f'\n\tFuel Level: {self.level.value}'
+        string += f'\n\tRange: {self.range.value} {self.rangeUnit.value}'
         return string
 
     class EngineType(Enum,):

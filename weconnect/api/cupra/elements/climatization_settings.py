@@ -70,6 +70,10 @@ class ClimatizationSettings(GenericSettings):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update Climatization settings from dict')
 
+        # Cupra
+        if 'value' not in fromDict:
+            fromDict['value'] = fromDict
+
         if 'value' in fromDict:
             self.targetTemperature_K.fromDict(fromDict['value'], 'targetTemperature_K')
             self.targetTemperature_C.fromDict(fromDict['value'], 'targetTemperature_C')

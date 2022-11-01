@@ -34,13 +34,13 @@ class CupraApi:
         return self.__stations
 
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
-            selective: Optional[list[Domain]] = None) -> \
+               selective: Optional[list[Domain]] = None) -> \
             Tuple[AddressableDict[str, Vehicle], AddressableDict[str, ChargingStation]]:
         self.updateVehicles(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
         return (self.__vehicles, self.__stations)
 
     def updateVehicles(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,  # noqa: C901
-                       selective: Optional[list[Domain]] = None) -> None:        
+                       selective: Optional[list[Domain]] = None) -> None:
         url = f'{self.base_url}/v1/users/{self.__fetcher.user_id}/garage/vehicles'
         data = self.__fetcher.fetchData(url, force)
         if data is not None and 'vehicles' in data and data['vehicles']:
@@ -52,13 +52,23 @@ class CupraApi:
                 vins.append(vin)
                 try:
                     if vin not in self.__vehicles:
-                        vehicle = Vehicle(fetcher=self.__fetcher, vin=vin, parent=self.__vehicles, fromDict=vehicleDict, fixAPI=self.fixAPI,
-                                            updateCapabilities=updateCapabilities, updatePictures=updatePictures, selective=selective,
-                                            enableTracker=self.__enableTracker)
+                        vehicle = Vehicle(
+                            fetcher=self.__fetcher,
+                            vin=vin,
+                            parent=self.__vehicles,
+                            fromDict=vehicleDict,
+                            fixAPI=self.fixAPI,
+                            updateCapabilities=updateCapabilities,
+                            updatePictures=updatePictures,
+                            selective=selective,
+                            enableTracker=self.__enableTracker)
                         self.__vehicles[vin] = vehicle
                     else:
-                        self.__vehicles[vin].update(fromDict=vehicleDict, updateCapabilities=updateCapabilities, updatePictures=updatePictures,
-                                                    selective=selective)
+                        self.__vehicles[vin].update(
+                            fromDict=vehicleDict,
+                            updateCapabilities=updateCapabilities,
+                            updatePictures=updatePictures,
+                            selective=selective)
                 except RetrievalError as retrievalError:
                     LOG.error('Failed to retrieve data for VIN %s: %s', vin, retrievalError)
             # delete those vins that are not anymore available

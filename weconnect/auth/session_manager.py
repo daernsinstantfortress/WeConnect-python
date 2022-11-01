@@ -4,8 +4,6 @@ import hashlib
 import json
 import logging
 
-# from requests import Session
-
 from weconnect.auth.openid_session import OpenIDSession
 from weconnect.service import Service
 # VW specific

@@ -6,6 +6,7 @@ import logging
 from requests import codes
 
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
+from weconnect.api.cupra.elements.charging_settings import ChargingSettings
 from weconnect.api.cupra.elements.controls import Controls
 from weconnect.api.cupra.elements.generic_status import GenericStatus
 from weconnect.api.cupra.elements.generic_capability import GenericCapability
@@ -201,14 +202,13 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             # We will map cupra values to these standard ones
             Domain.CHARGING: {
                 'batteryStatus': BatteryStatus,
-                'chargingStatus': ChargingStatus
+                'chargingStatus': ChargingStatus,
+                'chargingSettings': ChargingSettings,
             },
 
             # Cupra only
             Domain.SERVICES: {
                 'charging': ChargingStatus,     # -> Domain.CHARGING chargingStatus
-                # TODO Needs fixed for Cupra
-                # 'climatisation': ClimatizationStatus
             },
             Domain.ENGINES: {
                 'primary': EngineState
@@ -236,9 +236,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         
         url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
         data: Optional[Dict[str, Any]] = self.fetcher.fetchData(url, force)
-        
-        from pprint import pprint
-        pprint(data)
 
         if data is not None:
             # Iterate over top-level items in data dict
@@ -259,11 +256,11 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                 LOG.debug('Status %s does not exist, creating it', key)
                                 self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
                                                                             fromDict=data[domain.value][key], fixAPI=self.fixAPI)
-                    else:
+                    # else:
                         # Make a placeholder that we can overwrite later
                         # if key in self.domains[domain.value]:
-                        self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
-                                                                            fromDict={}, fixAPI=self.fixAPI)
+                        # self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
+                        #                                                     fromDict={}, fixAPI=self.fixAPI)
                         # else:
                         #     self.domains[domain.value] = { key: None }
                 if domain.value in data:
@@ -288,18 +285,63 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         self.controls.update()
 
         # HACK map Cupra values back to VW values
-        charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
-        engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
-        self.domains[Domain.CHARGING.value]['chargingStatus'].update(charging_dict)
-        self.domains[Domain.CHARGING.value]['chargingStatus'].enabled = True
-        
-        self.domains[Domain.CHARGING.value]['batteryStatus'].update({
-            'value': {
-                'currentSOC_pct': charging_dict['progressBarPct'],
+        # We need this conditional otherwise it will fail if `data is not None`
+        if Domain.SERVICES.value in self.domains:
+            charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
+            engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
+            # Create a charging domain object
+            self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
+
+            print(charging_dict['targetPct'])
+            charging_settings_dict = {
+                'targetSOC_pct': charging_dict['targetPct']
+                # We don't have these for Cupra
+                # maxChargeCurrentAC
+                # autoUnlockPlugWhenCharged
+                # autoUnlockPlugWhenChargedAC
+            }
+            print(charging_settings_dict)
+            self.domains[Domain.CHARGING.value]['chargingSettings'] = ChargingSettings(vehicle=self,
+                parent=self.domains[Domain.CHARGING.value],
+                statusId='chargingSettings',
+                fixAPI=self.fixAPI,
+                fromDict=charging_settings_dict)
+            # We also have to call update(), not just pass fromDict to constructor
+            self.domains[Domain.CHARGING.value]['chargingSettings'].update(charging_settings_dict)
+            # self.domains[Domain.CHARGING.value]['chargingSettings'].enabled = True
+            print(self.domains[Domain.CHARGING.value]['chargingSettings'].targetSOC_pct.value)
+
+            # Set charging status domain key
+            charging_status_dict = {
+                'remainingTime': charging_dict['remainingTime'],
+                'status': charging_dict['status'],
+                'chargeMode': charging_dict['chargeMode'],
+                # We don't have these for Cupra
+                # 'chargePower_kW
+                # 'chargeRate_kmph'
+                # 'chargeType'
+            }
+            self.domains[Domain.CHARGING.value]['chargingStatus'] = ChargingStatus(vehicle=self,
+                parent=self.domains[Domain.CHARGING.value],
+                statusId='chargingStatus',
+                fixAPI=self.fixAPI,
+                fromDict=charging_status_dict,
+            )
+            # # We also have to call update(), not just pass fromDict to constructor
+            self.domains[Domain.CHARGING.value]['chargingStatus'].update(charging_status_dict)
+
+            # Set battery status domain key
+            battery_status_dict = {
+                'currentSOC_pct': engines_dict['level'],
                 'cruisingRangeElectric_km': engines_dict['range']['value']
             }
-        })
-        self.domains[Domain.CHARGING.value]['batteryStatus'].enabled = True
+            self.domains[Domain.CHARGING.value]['batteryStatus'] = BatteryStatus(vehicle=self,
+                parent=self.domains[Domain.CHARGING.value],
+                statusId='batteryStatus',
+                fixAPI=self.fixAPI,
+                fromDict=battery_status_dict)
+            # We also have to call update(), not just pass fromDict to constructor
+            self.domains[Domain.CHARGING.value]['batteryStatus'].update(battery_status_dict)
 
 
     def __str__(self) -> str:  # noqa: C901

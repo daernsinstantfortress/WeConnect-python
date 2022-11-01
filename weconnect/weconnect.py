@@ -67,23 +67,9 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         self.password: str = password
 
         self.__userId: Optional[str] = None  # pylint: disable=unused-private-member
-        # self.__session: requests.Session = requests.Session()
 
-        # Entities
-        # self.__vehicles: AddressableDict[str, VwVehicle|CupraVehicle] = AddressableDict(localAddress='vehicles', parent=self)
-        # self.__stations: AddressableDict[str, VwChargingStation|CupraChargingStation] = AddressableDict(localAddress='chargingStations', parent=self)
-        
         self.fixAPI: bool = fixAPI
 
-        # Public api used by weconnect-mqtt
-        self.latitude: Optional[float] = None
-        # Public api used by weconnect-mqtt
-        self.longitude: Optional[float] = None
-        # Public api used by weconnect-mqtt
-        self.searchRadius: Optional[int] = None
-
-        self.market: Optional[str] = None
-        self.useLocale: Optional[str] = locale.getlocale()[0]
         self.__elapsed: List[timedelta] = []
         self.tokenfile = tokenfile
         self.__enableTracker: bool = False
@@ -100,6 +86,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
         if loginOnInit:
             self.__session.login()
 
+        # Construct the actual service adapter
         if service == Service.MY_CUPRA:
             self.__api = CupraApi(weconnect=self, fetcher=self.__fetcher)
         else:
@@ -121,6 +108,34 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
     @property
     def cache(self) -> Dict[str, Any]:
         return self.__fetcher.cache
+
+    # Used for charging station support
+    # Public api used by weconnect-mqtt
+    @property
+    def latitude(self) -> Optional[float]:
+        return self.__api.latitude
+
+    # Used for charging station support
+    # Public api used by weconnect-mqtt
+    @property
+    def longitude(self) -> Optional[float]:
+        return self.__api.longitude
+
+    # Used for charging station support
+    # Public api used by weconnect-mqtt
+    @property
+    def searchRadius(self) -> Optional[int]:
+        return self.__api.searchRadius
+
+    # Used for charging station support
+    @property
+    def market(self) -> Optional[str]:
+        return self.__api.market
+
+    # Used for charging station support
+    @property
+    def useLocale(self) -> Optional[str]:
+        return self.__api.useLocale
 
     # Public api used by HA volkswagen_we_connect_id
     @property
@@ -163,11 +178,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
 
     def setChargingStationSearchParameters(self, latitude: float, longitude: float, searchRadius: Optional[int] = None, market: Optional[str] = None,
                                            useLocale: Optional[str] = locale.getlocale()[0]) -> None:
-        self.latitude = latitude
-        self.longitude = longitude
-        self.searchRadius = searchRadius
-        self.market = market
-        self.useLocale = useLocale
+        self.__api.setChargingStationSearchParameters(latitude=latitude, longitude=longitude, searchRadius=searchRadius, market=market, useLocale=useLocale)
 
     def getLeafChildren(self) -> List[AddressableLeaf]:
         return [children for vehicle in self.__api.vehicles.values() for children in vehicle.getLeafChildren()] \

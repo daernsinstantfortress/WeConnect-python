@@ -29,25 +29,11 @@ class ChargingStatus(GenericStatus):
         self.chargeType = AddressableAttribute(localAddress='chargeType', value=None, parent=self, valueType=ChargingStatus.ChargeType)
         self.chargingSettings = AddressableAttribute(localAddress='chargingSettings', value=None, parent=self, valueType=str)
 
-        # Cupra
-        self.activeCupra = AddressableAttribute(localAddress='active', value=None, parent=self, valueType=bool)
-        self.remainingChargingTimeToComplete_min_Cupra = AddressableAttribute(
-            localAddress='remainingTime', parent=self, value=None, valueType=int)
-        self.targetChargePctCupra = AddressableAttribute(
-            localAddress='targetPct', parent=self, value=None, valueType=int)
-        self.statusCupra = AddressableAttribute(
-            localAddress='status', value=None, parent=self, valueType=ChargingStatus.ChargingStateCupra)
-        self.actualChargeCupra = AddressableAttribute(
-            localAddress='progressBarPct', value=None, parent=self, valueType=float)
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
 
     def update(self, fromDict, ignoreAttributes=None):  # noqa: C901
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update Charging status from dict')
-
-        # Cupra
-        if 'value' not in fromDict:
-            fromDict['value'] = fromDict
 
         if 'value' in fromDict:
             self.remainingChargingTimeToComplete_min.fromDict(fromDict['value'], 'remainingChargingTimeToComplete_min')
@@ -84,13 +70,6 @@ class ChargingStatus(GenericStatus):
                 self.chargeRate_kmph.enabled = False
             self.chargeType.fromDict(fromDict['value'], 'chargeType')
             self.chargingSettings.fromDict(fromDict['value'], 'chargingSettings')
-
-            # Cupra
-            self.activeCupra.fromDict(fromDict['value'], 'active')
-            self.remainingChargingTimeToComplete_min_Cupra.fromDict(fromDict['value'], 'remainingTime')
-            self.targetChargePctCupra.fromDict(fromDict['value'], 'targetPct')
-            self.statusCupra.fromDict(fromDict['value'], 'status')
-            self.actualChargeCupra.fromDict(fromDict['value'], 'progressBarPct')
         else:
             self.remainingChargingTimeToComplete_min.enabled = False
             self.chargingState.enabled = False
@@ -117,8 +96,6 @@ class ChargingStatus(GenericStatus):
             string += f'\n\tState: {self.chargingState.value.value}'  # pylint: disable=no-member
         if self.chargeMode.enabled:
             string += f'\n\tMode: {self.chargeMode.value.value}'  # pylint: disable=no-member
-        if self.remainingChargingTimeToComplete_min_Cupra.enabled:
-            string += f'\n\tRemaining Charging Time: {self.remainingChargingTimeToComplete_min_Cupra.value} minutes'
         if self.chargePower_kW.enabled:
             string += f'\n\tCharge Power: {self.chargePower_kW.value} kW'
         if self.chargeRate_kmph.enabled:
@@ -127,11 +104,6 @@ class ChargingStatus(GenericStatus):
             string += f'\n\tCharge Type: {self.chargeType.value.value}'
         if self.chargingSettings.enabled:
             string += f'\n\tCharging Settings: {self.chargingSettings.value}'
-        string += f'\n\t(Cupra) Active: {self.activeCupra.value}'
-        string += f'\n\t(Cupra) Remaining Charging Time: {self.remainingChargingTimeToComplete_min_Cupra.value}'
-        string += f'\n\t(Cupra) Actual Charge %: {self.actualChargeCupra.value}'
-        string += f'\n\t(Cupra) Target Charge %: {self.targetChargePctCupra.value}'
-        string += f'\n\t(Cupra) Charge Status: {self.statusCupra.value}'
         return string
 
     class ChargingState(Enum,):
@@ -146,20 +118,6 @@ class ChargingStatus(GenericStatus):
         UNSUPPORTED = 'unsupported'
         DISCHARGING = 'discharging'
         UNKNOWN = 'unknown charging state'
-
-    # Cupra. Many of these are guessed based on observed patterns
-    class ChargingStateCupra(Enum,):
-        OFF = 'off'
-        READY_FOR_CHARGING = 'ReadyForCharging'
-        NOT_READY_FOR_CHARGING = 'NotReadyForCharging'
-        CONSERVATION = 'Conservation'
-        CHARGE_PURPOSE_REACHED_NOT_CONSERVATION_CHARGING = 'ChargePurposeReachedAndNotConservationCharging'
-        CHARGE_PURPOSE_REACHED_CONSERVATION = 'ChargePurposeReachedAndConservation'
-        CHARGING = 'Charging'
-        ERROR = 'Error'
-        UNSUPPORTED = 'Unsupported'
-        DISCHARGING = 'Discharging'
-        UNKNOWN = 'Unknown charging state'
 
     class ChargeMode(Enum,):
         MANUAL = 'manual'

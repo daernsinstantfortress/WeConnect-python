@@ -28,6 +28,10 @@ class BatteryStatus(GenericStatus):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update battery status from dict')
 
+        # Cupra
+        if 'value' not in fromDict:
+            fromDict['value'] = fromDict
+            
         if 'value' in fromDict:
             self.currentSOC_pct.fromDict(fromDict['value'], 'currentSOC_pct')
 

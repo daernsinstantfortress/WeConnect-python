@@ -224,7 +224,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         self.updateStatus(updateCapabilities=updateCapabilities, force=force, selective=selective)
         if SUPPORT_IMAGES and updatePictures:
             for badge in Vehicle.Badge:
-                badgeImg: Image = Image.open(f'{os.path.dirname(__file__)}/../badges/{badge.value}.png')
+                badgeImg: PILImage.Image = PILImage.open(f'{os.path.dirname(__file__)}/../badges/{badge.value}.png')
                 badgeImg.thumbnail((100, 100))
                 self.__badges[badge] = badgeImg
 

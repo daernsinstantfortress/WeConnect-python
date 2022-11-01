@@ -103,6 +103,9 @@ class Fetcher:
         
         self.__cache[url] = (data, str(datetime.utcnow()))
 
+        LOG.debug(f'Retrieved data from url: {url}')
+        LOG.debug(json.dumps(data))
+
         return data
 
     @property
