@@ -3,13 +3,15 @@
 from weconnect import weconnect
 from weconnect.api.cupra.elements.climatization_settings import ClimatizationSettings
 from weconnect.api.cupra.elements.climatization_status import ClimatizationStatus
+from weconnect.api.cupra.elements.enums import ClimatizationState
 from weconnect.service import Service
-from weconnect.addressable import AddressableDict
+from weconnect.addressable import AddressableAttribute, AddressableDict, ChangeableAttribute
 from weconnect.api.cupra.elements.battery_status import BatteryStatus
 from weconnect.api.cupra.elements.charging_settings import ChargingSettings
 from weconnect.api.cupra.elements.charging_status import ChargingStatus
 from weconnect.api.cupra.elements.vehicle import Vehicle
 from weconnect.api.cupra.domain import Domain
+
 
 def test_vehicles_element_minimal_construction_not_charging():
     # Given
@@ -20,9 +22,11 @@ def test_vehicles_element_minimal_construction_not_charging():
     target_charge = 100
     target_temperature_k = 295.15
     climate_remaining_time = 10
+
     class MockFetcher:
         base_url = 'https://example.com'
         user_id = 'USERID'
+
         def fetchData(self, url, force):
             # url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
             return {
@@ -30,7 +34,7 @@ def test_vehicles_element_minimal_construction_not_charging():
                     "primary": {
                         "type": "EV",
                         "fuelType": "EV",
-                        "range": { "value": range_value, "unit": "Km" },
+                        "range": {"value": range_value, "unit": "Km"},
                         "level": charge_level
                     },
                     "secondary": {
@@ -40,7 +44,7 @@ def test_vehicles_element_minimal_construction_not_charging():
                         "level": None
                     }
                 },
-                "measurements": { 
+                "measurements": {
                     "mileageKm": mileage_km
                 },
                 "services": {
@@ -105,19 +109,20 @@ def test_vehicles_element_minimal_construction_not_charging():
     battery_status: BatteryStatus = vehicle.domains[Domain.CHARGING.value]['batteryStatus']
     assert battery_status.cruisingRangeElectric_km.value == range_value
     assert battery_status.currentSOC_pct.value == charge_level
-    
+
     charging_settings: ChargingSettings = vehicle.domains[Domain.CHARGING.value]['chargingSettings']
     assert charging_settings.targetSOC_pct.value == target_charge
 
     climatization_settings: ClimatizationSettings = vehicle.domains[Domain.CLIMATISATION.value]['climatisationSettings']
     assert climatization_settings.targetTemperature_K.value == target_temperature_k
     assert climatization_settings.targetTemperature_C.value == target_temperature_k - 273.15
-    assert climatization_settings.targetTemperature_F.value == 1.8 * ( target_temperature_k - 273 ) + 32
+    assert climatization_settings.targetTemperature_F.value == 1.8 * (target_temperature_k - 273) + 32
 
     climatization_status: ClimatizationStatus = vehicle.domains[Domain.CLIMATISATION.value]['climatisationStatus']
-    assert climatization_status.climatisationState.value == ClimatizationStatus.ClimatizationState.OFF
+    assert climatization_status.climatisationState.value == ClimatizationState.OFF
     # Note when fixApi == True, then this should be 0 if climatisationState == ClimatizationStatus.ClimatizationState.OFF
     assert climatization_status.remainingClimatisationTime_min.value == 0
+
 
 def test_vehicles_element_minimal_construction_charging():
     # Given
@@ -127,9 +132,11 @@ def test_vehicles_element_minimal_construction_charging():
     charging_remaining_time = 355
     target_charge = 78.0
     status_charging = "Charging"
+
     class MockFetcher:
         base_url = 'https://example.com'
         user_id = 'USERID'
+
         def fetchData(self, url, force):
             # url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
             return {
@@ -137,7 +144,7 @@ def test_vehicles_element_minimal_construction_charging():
                     "primary": {
                         "type": "EV",
                         "fuelType": "EV",
-                        "range": { "value": range_value, "unit": "Km" },
+                        "range": {"value": range_value, "unit": "Km"},
                         "level": charge_level
                     },
                     "secondary": {
@@ -147,7 +154,7 @@ def test_vehicles_element_minimal_construction_charging():
                         "level": None
                     }
                 },
-                "measurements": { 
+                "measurements": {
                     "mileageKm": mileage_km
                 },
                 "services": {
@@ -212,10 +219,11 @@ def test_vehicles_element_minimal_construction_charging():
     battery_status: BatteryStatus = vehicle.domains[Domain.CHARGING.value]['batteryStatus']
     assert battery_status.cruisingRangeElectric_km.value == range_value
     assert battery_status.currentSOC_pct.value == charge_level
-    
+
     charging_settings: ChargingSettings = vehicle.domains[Domain.CHARGING.value]['chargingSettings']
     assert charging_settings.targetSOC_pct.value == target_charge
-    
+
+
 def test_construct_weconnect_like_ha_integration():
     # When
     weconnect.WeConnect(
@@ -227,4 +235,57 @@ def test_construct_weconnect_like_ha_integration():
     )
     # Then just make sure we did construction without an error
     assert True
-    
+
+def test_climate_status():
+    # Given
+    class MockFetcher:
+        called = False
+        def post(self, url, *args):
+            self.called = url
+    class MockVehicle:
+        fetcher = MockFetcher()
+        vin: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='vin', parent=None, value='VINVINVIN', valueType=str)
+    vehicle = MockVehicle()
+    climate_dict = {
+    }
+    climate = ClimatizationStatus(
+        vehicle=vehicle,
+        parent=None,
+        statusId='climatisationStatus',
+        fromDict=climate_dict,
+    )
+    # When
+    climate.climatisationState.value = ClimatizationState.COOLING
+    # Then
+    assert climate.climatisationState.value == ClimatizationState.COOLING
+    assert vehicle.fetcher.called
+
+
+def test_changeable_attribute():
+    # Given
+    class MockFetcher:
+        called = False
+        def post(self, url, *args):
+            self.called = url
+    class MockVehicle:
+        fetcher = MockFetcher()
+        vin: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='vin', parent=None, value='VINVINVIN', valueType=str)
+    vehicle = MockVehicle()
+    climate_dict = {
+
+    }
+    climate = ClimatizationSettings(
+        vehicle=vehicle,
+        parent=None,
+        statusId='climatisationSettings',
+        fromDict=climate_dict,
+    )
+    # When
+    climate.targetTemperature_K.value = 100;
+    # Then
+    assert climate.targetTemperature_K.value == 100
+    # There doesn't seem to be a way to set temp via the api
+    assert vehicle.fetcher.called == False
+

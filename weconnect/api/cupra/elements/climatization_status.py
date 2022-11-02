@@ -1,13 +1,15 @@
 from enum import Enum
 import logging
 
-from weconnect.addressable import AddressableAttribute
+from weconnect.addressable import AddressableAttribute, AddressableLeaf, ChangeableAttribute
+from weconnect.api.cupra.elements.enums import ClimatizationState
+from weconnect.api.cupra.elements.generic_settings import GenericSettings
 from weconnect.api.cupra.elements.generic_status import GenericStatus
 
 LOG = logging.getLogger("weconnect")
 
 
-class ClimatizationStatus(GenericStatus):
+class ClimatizationStatus(GenericSettings):
     def __init__(
         self,
         vehicle,
@@ -18,9 +20,16 @@ class ClimatizationStatus(GenericStatus):
     ):
         self.remainingClimatisationTime_min = AddressableAttribute(
             localAddress='remainingClimatisationTime_min', parent=self, value=None, valueType=int)
-        self.climatisationState = AddressableAttribute(localAddress='climatisationState', value=None, parent=self,
-                                                       valueType=ClimatizationStatus.ClimatizationState)
+        # self.climatisationState = AddressableAttribute(localAddress='climatisationState', value=None, parent=self,
+        #                                                valueType=ClimatizationStatus.ClimatizationState)
+        self.climatisationState = ChangeableAttribute(
+            localAddress='climatisationState', parent=self, value=None, valueType=ClimatizationState)
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
+
+        self.climatisationState.addObserver(
+            self.valueChanged, AddressableLeaf.ObserverEvent.VALUE_CHANGED,
+            priority=AddressableLeaf.ObserverPriority.INTERNAL_MID)
+
 
     def update(self, fromDict, ignoreAttributes=None):
         ignoreAttributes = ignoreAttributes or []
@@ -34,7 +43,7 @@ class ClimatizationStatus(GenericStatus):
             self.climatisationState.fromDict(fromDict['value'], 'climatisationState')
             if 'remainingClimatisationTime_min' in fromDict['value']:
                 remainingTime = int(fromDict['value']['remainingClimatisationTime_min'])
-                if self.fixAPI and remainingTime != 0 and self.climatisationState.value == ClimatizationStatus.ClimatizationState.OFF:
+                if self.fixAPI and remainingTime != 0 and self.climatisationState.value == ClimatizationState.OFF:
                     remainingTime = 0
                     LOG.debug('%s: Attribute remainingClimatisationTime_min is %s while climatisationState is %s. Setting 0 instead',
                               self.getGlobalAddress(), fromDict['value']['remainingClimatisationTime_min'], self.climatisationState.value)
@@ -55,11 +64,3 @@ class ClimatizationStatus(GenericStatus):
         if self.remainingClimatisationTime_min.enabled:
             string += f'\n\tRemaining Climatization Time: {self.remainingClimatisationTime_min.value} min'
         return string
-
-    class ClimatizationState(Enum,):
-        OFF = 'Off'
-        HEATING = 'Heating'
-        COOLING = 'Cooling'
-        VENTILATION = 'Ventilation'
-        INVALID = 'Invalid'
-        UNKNOWN = 'Unknown Climatization State'

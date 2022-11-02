@@ -108,6 +108,9 @@ class Fetcher:
 
         return data
 
+    def post(self, url, data=None, allow_redirects=True):
+        self.session.post(url=url, data=data, allow_redirects=allow_redirects)
+
     @property
     def user_id(self):
         # TODO better typing so we don't have to ignore here
