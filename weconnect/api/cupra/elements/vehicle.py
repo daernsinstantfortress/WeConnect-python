@@ -17,9 +17,11 @@ from weconnect.api.cupra.elements.error import Error
 from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
 from weconnect.api.cupra.elements.battery_status import BatteryStatus
 from weconnect.errors import APICompatibilityError, APIError
-from weconnect.util import toBool
+from weconnect.util import kelvinToCelsius, kelvinToFarenheit, toBool
 from weconnect.api.cupra.domain import Domain
 from weconnect.fetch import Fetcher
+from weconnect.api.cupra.elements.climatization_status import ClimatizationStatus
+from weconnect.api.cupra.elements.climatization_settings import ClimatizationSettings
 
 # Cupra
 from weconnect.api.cupra.elements.engine_state import EngineState
@@ -122,12 +124,12 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             LOG.debug('Create /update vehicle')
 
             self.vin.fromDict(fromDict, 'vin')
-            self.role.fromDict(fromDict, 'role')
+            self.role.fromDict(fromDict, 'userRole')
             self.enrollmentStatus.fromDict(fromDict, 'enrollmentStatus')
             self.userRoleStatus.fromDict(fromDict, 'userRoleStatus')
             self.model.fromDict(fromDict, 'model')
             self.devicePlatform.fromDict(fromDict, 'devicePlatform')
-            self.nickname.fromDict(fromDict, 'nickname')
+            self.nickname.fromDict(fromDict, 'vehicleNickname')
             self.brandCode.fromDict(fromDict, 'brandCode')
 
             if updateCapabilities and 'capabilities' in fromDict and fromDict['capabilities'] is not None:
@@ -205,10 +207,18 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 'chargingStatus': ChargingStatus,
                 'chargingSettings': ChargingSettings,
             },
+            Domain.CLIMATISATION: {
+                'climatisationStatus': ClimatizationStatus,
+                'climatisationSettings': ClimatizationSettings,
+                # 'windowHeatingStatus': WindowHeatingStatus,
+                # 'climatisationRequestStatus': GenericRequestStatus,
+                # 'climatisationSettingsRequestStatus': GenericRequestStatus,
+            },
 
             # Cupra only
             Domain.SERVICES: {
                 'charging': ChargingStatus,     # -> Domain.CHARGING chargingStatus
+                'climatisation': ClimatizationStatus
             },
             Domain.ENGINES: {
                 'primary': EngineState
@@ -289,18 +299,13 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         if Domain.SERVICES.value in self.domains:
             charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
             engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
+            climatization_dict = self.domains[Domain.SERVICES.value]['climatisation'].fromDict
             # Create a charging domain object
             self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
 
-            print(charging_dict['targetPct'])
             charging_settings_dict = {
                 'targetSOC_pct': charging_dict['targetPct']
-                # We don't have these for Cupra
-                # maxChargeCurrentAC
-                # autoUnlockPlugWhenCharged
-                # autoUnlockPlugWhenChargedAC
             }
-            print(charging_settings_dict)
             self.domains[Domain.CHARGING.value]['chargingSettings'] = ChargingSettings(vehicle=self,
                 parent=self.domains[Domain.CHARGING.value],
                 statusId='chargingSettings',
@@ -308,18 +313,12 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 fromDict=charging_settings_dict)
             # We also have to call update(), not just pass fromDict to constructor
             self.domains[Domain.CHARGING.value]['chargingSettings'].update(charging_settings_dict)
-            # self.domains[Domain.CHARGING.value]['chargingSettings'].enabled = True
-            print(self.domains[Domain.CHARGING.value]['chargingSettings'].targetSOC_pct.value)
 
             # Set charging status domain key
             charging_status_dict = {
                 'remainingTime': charging_dict['remainingTime'],
                 'status': charging_dict['status'],
                 'chargeMode': charging_dict['chargeMode'],
-                # We don't have these for Cupra
-                # 'chargePower_kW
-                # 'chargeRate_kmph'
-                # 'chargeType'
             }
             self.domains[Domain.CHARGING.value]['chargingStatus'] = ChargingStatus(vehicle=self,
                 parent=self.domains[Domain.CHARGING.value],
@@ -343,6 +342,32 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             # We also have to call update(), not just pass fromDict to constructor
             self.domains[Domain.CHARGING.value]['batteryStatus'].update(battery_status_dict)
 
+            # Climate status domain key
+            climate_status_dict = {
+                'climatisationState': climatization_dict['status'],
+                'remainingClimatisationTime_min': climatization_dict['remainingTime']
+            }
+            self.domains[Domain.CLIMATISATION.value]['climatisationStatus'] = ClimatizationStatus(vehicle=self,
+                parent=self.domains[Domain.CLIMATISATION.value],
+                statusId='climatisationStatus',
+                fixAPI=self.fixAPI,
+                fromDict=climate_status_dict)
+            # We also have to call update(), not just pass fromDict to constructor
+            self.domains[Domain.CLIMATISATION.value]['climatisationStatus'].update(climate_status_dict)
+
+            # Climate settings domain key
+            climate_settings_dict = {
+                'targetTemperature_K': climatization_dict['targetTemperatureKelvin'],
+                'targetTemperature_C': kelvinToCelsius(float(climatization_dict['targetTemperatureKelvin'])),
+                'targetTemperature_F': kelvinToFarenheit(float(climatization_dict['targetTemperatureKelvin']))
+            }
+            self.domains[Domain.CLIMATISATION.value]['climatisationSettings'] = ClimatizationSettings(vehicle=self,
+                parent=self.domains[Domain.CLIMATISATION.value],
+                statusId='climatisationSettings',
+                fixAPI=self.fixAPI,
+                fromDict=climate_settings_dict)
+            # We also have to call update(), not just pass fromDict to constructor
+            self.domains[Domain.CLIMATISATION.value]['climatisationSettings'].update(climate_settings_dict)
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''

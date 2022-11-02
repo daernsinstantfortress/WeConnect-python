@@ -61,6 +61,14 @@ def farenheitToKelvin(value):
     return 273.5 + ((value - 32.0) * (5.0 / 9.0))
 
 
+def kelvinToCelsius(value):
+    return value - 273.15
+
+
+def kelvinToFarenheit(value):
+    return 1.8 * ( value - 273 ) + 32
+
+
 class DuplicateFilter(logging.Filter):
 
     def __init__(self, name: str = '') -> None:

@@ -11,6 +11,7 @@ class Domain(Enum):
 
     # Standard domains from VW api
     CHARGING = 'charging'
+    CLIMATISATION = 'climatisation'
 
     def __str__(self):
         return self.value
