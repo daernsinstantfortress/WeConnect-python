@@ -14,11 +14,9 @@ from weconnect.errors import ErrorBus
 from weconnect.api.vw.domain import Domain
 from weconnect.api.vw.api import VwApi
 from weconnect.api.vw.elements.vehicle import Vehicle as VwVehicle
-from weconnect.api.vw.elements.charging_station import ChargingStation as VwChargingStation
 # Cupra specific
 from weconnect.api.cupra.api import CupraApi
 from weconnect.api.cupra.elements.vehicle import Vehicle as CupraVehicle
-from weconnect.api.cupra.elements.charging_station import ChargingStation as CupraChargingStation
 
 LOG = logging.getLogger("weconnect")
 
@@ -170,10 +168,7 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
     def update(self, updateCapabilities: bool = True, updatePictures: bool = True, force: bool = False,
                selective: Optional[list[Domain]] = None) -> None:
         self.__elapsed.clear()
-        # vehicles, charging_stations = self._api.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
         self.__api.update(updateCapabilities=updateCapabilities, updatePictures=updatePictures, force=force, selective=selective)
-        # self.__vehicles = vehicles
-        # self.__stations = charging_stations
         self.updateComplete()
 
     def setChargingStationSearchParameters(self, latitude: float, longitude: float, searchRadius: Optional[int] = None, market: Optional[str] = None,

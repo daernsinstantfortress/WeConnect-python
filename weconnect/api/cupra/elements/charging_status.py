@@ -29,13 +29,6 @@ class ChargingStatus(GenericStatus):
         self.chargeType = AddressableAttribute(localAddress='chargeType', value=None, parent=self, valueType=ChargingStatus.ChargeType)
         self.chargingSettings = AddressableAttribute(localAddress='chargingSettings', value=None, parent=self, valueType=str)
 
-        # Cupra
-        self.activeCupra = AddressableAttribute(localAddress='active', value=None, parent=self, valueType=bool)
-        self.targetChargePctCupra = AddressableAttribute(
-            localAddress='targetPct', parent=self, value=None, valueType=int)
-        self.actualChargeCupra = AddressableAttribute(
-            localAddress='progressBarPct', value=None, parent=self, valueType=float)
-
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
 
     def update(self, fromDict, ignoreAttributes=None):  # noqa: C901
@@ -81,14 +74,6 @@ class ChargingStatus(GenericStatus):
                 self.chargeRate_kmph.enabled = False
             self.chargeType.fromDict(fromDict['value'], 'chargeType')
             self.chargingSettings.fromDict(fromDict['value'], 'chargingSettings')
-
-            # TODO 
-            # self.activeCupra = AddressableAttribute(localAddress='active', value=None, parent=self, valueType=bool)
-            # self.targetChargePctCupra = AddressableAttribute(
-            #     localAddress='targetPct', parent=self, value=None, valueType=int)
-            # self.actualChargeCupra = AddressableAttribute(
-            #     localAddress='progressBarPct', value=None, parent=self, valueType=float)
-
         else:
             self.remainingChargingTimeToComplete_min.enabled = False
             self.chargingState.enabled = False
@@ -97,9 +82,6 @@ class ChargingStatus(GenericStatus):
             self.chargeRate_kmph.enabled = False
             self.chargeType.enabled = False
             self.chargingSettings.enabled = False
-            self.activeCupra.enabled = False
-            self.targetChargePctCupra.enabled = False
-            self.actualChargeCupra.enabled = False
 
         super().update(fromDict=fromDict, ignoreAttributes=(ignoreAttributes
                                                             + [
