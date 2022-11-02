@@ -22,6 +22,19 @@ Python API for the Volkswagen WeConnect and Cupra MyCupra Services. If you are n
 pip3 install weconnect[Images]
 ```
 
+## Package
+```
+python3 -m pip install --upgrade build
+python3 -m build --sdist
+python3 -m build --wheel
+```
+
+## Distribute
+```
+python3 -m pip install --upgrade twine
+python3 -m twine upload --repository pypi dist/*
+```
+
 ## Getting started
 - To get started have a look in the [examples folder](https://github.com/tillsteinbach/WeConnect-python/tree/main/examples)
 
