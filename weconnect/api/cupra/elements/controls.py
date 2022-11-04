@@ -46,41 +46,47 @@ class Controls(AddressableObject):
                             valueSetter=self.__setChargingControlChange)
 
     def __setClimatizationControlChange(self, value):  # noqa: C901
-        if isinstance(value, ControlOperation):
-            if value not in [ControlOperation.START, ControlOperation.STOP]:
-                raise ControlError('Could not control climatisation, control operation %s cannot be executed', value)
-            control = value
-            temperature = None
-        elif isinstance(value, (int, float)):
-            control = ControlOperation.START
-            temperature = float(value)
-        else:
-            raise ControlError('Could not control climatisation, control argument %s cannot be understood', value)
+        # if isinstance(value, ControlOperation):
+        #     if value not in [ControlOperation.START, ControlOperation.STOP]:
+        #         raise ControlError('Could not control climatisation, control operation %s cannot be executed', value)
+        #     control = value
+        #     temperature = None
+        # elif isinstance(value, (int, float)):
+        #     control = ControlOperation.START
+        #     temperature = float(value)
+        # else:
+        #     raise ControlError('Could not control climatisation, control argument %s cannot be understood', value)
 
-        url = f'https://mobileapi.apps.emea.vwapps.io/vehicles/{self.vehicle.vin.value}/climatisation/{control.value}'
+        url = f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/climatisation/requests/{value.value}'
 
-        settingsDict = dict()
-        if control == ControlOperation.START:
-            if 'climatisation' not in self.vehicle.domains and 'climatisationSettings' not in self.vehicle.domains['climatisation']:
-                raise ControlError('Could not control climatisation, there are no climatisationSettings for the vehicle available.')
-            climatizationSettings = self.vehicle.domains['climatisation']['climatisationSettings']
-            for child in climatizationSettings.getLeafChildren():
-                if isinstance(child, ChangeableAttribute):
-                    settingsDict[child.getLocalAddress()] = child.value
-            if temperature is not None:
-                if 'targetTemperature_C' in settingsDict:
-                    settingsDict['targetTemperature_C'] = temperature
-                settingsDict['targetTemperature_K'] = celsiusToKelvin(temperature)
-            elif 'targetTemperature_K' not in settingsDict:
-                if 'targetTemperature_C' in settingsDict:
-                    settingsDict['targetTemperature_K'] = celsiusToKelvin(settingsDict['targetTemperature_C'])
-                elif 'targetTemperature_F' in settingsDict:
-                    settingsDict['targetTemperature_K'] = farenheitToKelvin(settingsDict['targetTemperature_F'])
-                else:
-                    settingsDict['targetTemperature_K'] = celsiusToKelvin(20.5)
+        # Build up settings dict
+        # settingsDict = dict()
+        # if control == ControlOperation.START:
+        #     if 'climatisation' not in self.vehicle.domains and 'climatisationSettings' not in self.vehicle.domains['climatisation']:
+        #         raise ControlError('Could not control climatisation, there are no climatisationSettings for the vehicle available.')
+        #     climatizationSettings = self.vehicle.domains['climatisation']['climatisationSettings']
+        #     for child in climatizationSettings.getLeafChildren():
+        #         if isinstance(child, ChangeableAttribute):
+        #             settingsDict[child.getLocalAddress()] = child.value
+        #     if temperature is not None:
+        #         if 'targetTemperature_C' in settingsDict:
+        #             settingsDict['targetTemperature_C'] = temperature
+        #         settingsDict['targetTemperature_K'] = celsiusToKelvin(temperature)
+        #     elif 'targetTemperature_K' not in settingsDict:
+        #         if 'targetTemperature_C' in settingsDict:
+        #             settingsDict['targetTemperature_K'] = celsiusToKelvin(settingsDict['targetTemperature_C'])
+        #         elif 'targetTemperature_F' in settingsDict:
+        #             settingsDict['targetTemperature_K'] = farenheitToKelvin(settingsDict['targetTemperature_F'])
+        #         else:
+        #             settingsDict['targetTemperature_K'] = celsiusToKelvin(20.5)
 
-        data = json.dumps(settingsDict)
-        controlResponse = self.vehicle.weConnect.session.post(url, data=data, allow_redirects=True)
+        # Do API request
+
+        # Providing a body results in a 415 error
+        # data = json.dumps(settingsDict)
+        # controlResponse = self.vehicle.fetcher.post(url, data=data, allow_redirects=True)
+
+        controlResponse = self.vehicle.fetcher.post(url, allow_redirects=True)
         if controlResponse.status_code != requests.codes['ok']:
             errorDict = controlResponse.json()
             if errorDict is not None and 'error' in errorDict:
@@ -100,6 +106,8 @@ class Controls(AddressableObject):
                 else:
                     raise SetterError(f'Could not control climatisation ({controlResponse.status_code})')
             raise SetterError(f'Could not control climatisation ({controlResponse.status_code})')
+
+        # Build up response
         responseDict = controlResponse.json()
         if 'data' in responseDict and 'requestID' in responseDict['data']:
             if self.vehicle.requestTracker is not None:
@@ -107,9 +115,10 @@ class Controls(AddressableObject):
 
     def __setChargingControlChange(self, value):  # noqa: C901
         if value in [ControlOperation.START, ControlOperation.STOP]:
-            url = f'https://mobileapi.apps.emea.vwapps.io/vehicles/{self.vehicle.vin.value}/charging/{value.value}'
+            url = f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/charging/requests/{value.value}'
 
-            controlResponse = self.vehicle.weConnect.session.post(url, data='{}', allow_redirects=True)
+            # Do API request
+            controlResponse = self.vehicle.fetcher.post(url, data='{}', allow_redirects=True)
             if controlResponse.status_code != requests.codes['ok']:
                 errorDict = controlResponse.json()
                 if errorDict is not None and 'error' in errorDict:
@@ -129,6 +138,8 @@ class Controls(AddressableObject):
                     else:
                         raise SetterError(f'Could not control charging ({controlResponse.status_code})')
                 raise SetterError(f'Could not control charging ({controlResponse.status_code})')
+
+            # Build up response
             responseDict = controlResponse.json()
             if 'data' in responseDict and 'requestID' in responseDict['data']:
                 if self.vehicle.requestTracker is not None:

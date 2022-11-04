@@ -90,7 +90,7 @@ class ChargingStation(AddressableObject):  # pylint: disable=too-many-instance-a
 
             for key, value in {key: value for key, value in fromDict.items()
                                if key not in ['city', 'country', 'postcode', 'street']}.items():
-                LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
         def __str__(self):
             returnString = ''
@@ -147,14 +147,14 @@ class ChargingStation(AddressableObject):  # pylint: disable=too-many-instance-a
                 except ValueError:
                     self.available.setValueWithCarTime(ChargingStation.ChargingSpot.AVAILABILITY.UNKNOWN,
                                                        lastUpdateFromCar=None, fromServer=True)
-                    LOG.warning('An unsupported type: %s was provided,'
+                    LOG.debug('An unsupported type: %s was provided,'
                                 ' please report this as a bug', fromDict['available'])
             else:
                 self.available.enabled = False
 
             for key, value in {key: value for key, value in fromDict.items()
                                if key not in ['connectors', 'chargingPower', 'available', 'plugTypes']}.items():
-                LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
         def __str__(self):
             returnString = ''
@@ -205,7 +205,7 @@ class ChargingStation(AddressableObject):  # pylint: disable=too-many-instance-a
                     except ValueError:
                         self.plugType.setValueWithCarTime(ChargingStation.ChargingSpot.PlugType.UNKNOWN,
                                                           lastUpdateFromCar=None, fromServer=True)
-                        LOG.warning('An unsupported type: %s was provided,'
+                        LOG.debug('An unsupported type: %s was provided,'
                                     ' please report this as a bug', fromDict['plugType'])
                 else:
                     self.plugType.enabled = False
@@ -217,7 +217,7 @@ class ChargingStation(AddressableObject):  # pylint: disable=too-many-instance-a
 
                 for key, value in {key: value for key, value in fromDict.items()
                                    if key not in ['plugType', 'chargingPower']}.items():
-                    LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                    LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
             def __str__(self):
                 returnString = ''
@@ -262,7 +262,7 @@ class ChargingStation(AddressableObject):  # pylint: disable=too-many-instance-a
 
             for key, value in {key: value for key, value in fromDict.items()
                                if key not in ['name', 'id', 'phoneNumber']}.items():
-                LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
         def __str__(self):
             returnString = ''

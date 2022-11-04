@@ -67,7 +67,7 @@ class Error(AddressableObject):
 
         for key, value in {key: value for key, value in fromDict.items()
                            if key not in ['code', 'message', 'group', 'info', 'errorTimeStamp', 'retry']}.items():
-            LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+            LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
     def __str__(self) -> str:
         return f'Error {self.code.value}: {self.message.value} \n\tinfo: {self.info.value} \n\ttimestamp: {self.timestamp.value}'

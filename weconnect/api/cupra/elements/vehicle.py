@@ -3,15 +3,12 @@ from typing import Dict, List, Any, Type, Optional
 from enum import Enum
 import logging
 
-from requests import codes
-
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
 from weconnect.api.cupra.elements.charging_settings import ChargingSettings
 from weconnect.api.cupra.elements.controls import Controls
 from weconnect.api.cupra.elements.generic_status import GenericStatus
 from weconnect.api.cupra.elements.generic_capability import GenericCapability
 from weconnect.api.cupra.elements.charging_status import ChargingStatus
-from weconnect.api.cupra.elements.parking_position import ParkingPosition
 from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
 from weconnect.api.cupra.elements.error import Error
 from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
@@ -189,7 +186,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                               'images',
                                               'tags',
                                               'coUsers']}.items():
-                LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
         self.updateStatus(updateCapabilities=updateCapabilities, force=force, selective=selective)
 
@@ -281,7 +278,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 # the known ones
                 # for key, value in {key: value for key, value in data[domain.value].items()
                 #                     if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
-                #     LOG.warning('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
+                #     LOG.debug('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
                 # else:
                 #     # Make a placeholder that we can overwrite later
                 #     if domain.value not in self.domains:
@@ -289,10 +286,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
 
             # check that there is no additional domain than the configured ones
             for key, value in {key: value for key, value in data.items() if key not in list([domain.value for domain in jobKeyClassMap.keys()])}.items():
-                LOG.warning('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
-
-        # Controls
-        self.controls.update()
+                LOG.debug('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
 
         # HACK map Cupra values back to VW values
         # We need this conditional otherwise it will fail if `data is not None`
@@ -368,6 +362,9 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 fromDict=climate_settings_dict)
             # We also have to call update(), not just pass fromDict to constructor
             self.domains[Domain.CLIMATISATION.value]['climatisationSettings'].update(climate_settings_dict)
+
+        # Controls
+        self.controls.update()
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''
@@ -464,7 +461,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                     self.role.setValueWithCarTime(Vehicle.User.Role(fromDict['role']), lastUpdateFromCar=None, fromServer=True)
                 except ValueError:
                     self.role.setValueWithCarTime(Vehicle.User.Role.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-                    LOG.warning('An unsupported role: %s was provided, please report this as a bug', fromDict['role'])
+                    LOG.debug('An unsupported role: %s was provided, please report this as a bug', fromDict['role'])
             else:
                 self.role.enabled = False
 
@@ -479,7 +476,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                                                               fromServer=True)
                 except ValueError:
                     self.enrollmentStatus.setValueWithCarTime(Vehicle.User.EnrollmentStatus.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-                    LOG.warning('An unsupported target operation: %s was provided, please report this as a bug', fromDict['enrollmentStatus'])
+                    LOG.debug('An unsupported target operation: %s was provided, please report this as a bug', fromDict['enrollmentStatus'])
             else:
                 self.enrollmentStatus.enabled = False
 
