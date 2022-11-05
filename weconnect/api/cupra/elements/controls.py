@@ -46,47 +46,83 @@ class Controls(AddressableObject):
                             valueSetter=self.__setChargingControlChange)
 
     def __setClimatizationControlChange(self, value):  # noqa: C901
-        # if isinstance(value, ControlOperation):
-        #     if value not in [ControlOperation.START, ControlOperation.STOP]:
-        #         raise ControlError('Could not control climatisation, control operation %s cannot be executed', value)
-        #     control = value
-        #     temperature = None
-        # elif isinstance(value, (int, float)):
-        #     control = ControlOperation.START
-        #     temperature = float(value)
-        # else:
-        #     raise ControlError('Could not control climatisation, control argument %s cannot be understood', value)
+        if isinstance(value, ControlOperation):
+            if value not in [ControlOperation.START, ControlOperation.STOP]:
+                raise ControlError('Could not control climatisation, control operation %s cannot be executed', value)
+            control = value
+            temperature = None
+        elif isinstance(value, (int, float)):
+            control = ControlOperation.START
+            temperature = float(value)
+        else:
+            raise ControlError('Could not control climatisation, control argument %s cannot be understood', value)
 
-        url = f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/climatisation/requests/{value.value}'
+        if control == ControlOperation.START:
+            # Build up settings dict
+            settingsDict = dict()
+            if control == ControlOperation.START:
+                if 'climatisation' not in self.vehicle.domains and 'climatisationSettings' not in self.vehicle.domains['climatisation']:
+                    raise ControlError('Could not control climatisation, there are no climatisationSettings for the vehicle available.')
+                climatizationSettings = self.vehicle.domains['climatisation']['climatisationSettings']
+                for child in climatizationSettings.getLeafChildren():
+                    if isinstance(child, ChangeableAttribute):
+                        settingsDict[child.getLocalAddress()] = child.value
+                if temperature is not None:
+                    if 'targetTemperature_C' in settingsDict:
+                        settingsDict['targetTemperature_C'] = temperature
+                    settingsDict['targetTemperature_K'] = celsiusToKelvin(temperature)
+                elif 'targetTemperature_K' not in settingsDict:
+                    if 'targetTemperature_C' in settingsDict:
+                        settingsDict['targetTemperature_K'] = celsiusToKelvin(settingsDict['targetTemperature_C'])
+                    elif 'targetTemperature_F' in settingsDict:
+                        settingsDict['targetTemperature_K'] = farenheitToKelvin(settingsDict['targetTemperature_F'])
+                    else:
+                        settingsDict['targetTemperature_K'] = celsiusToKelvin(20.5)
 
-        # Build up settings dict
-        # settingsDict = dict()
-        # if control == ControlOperation.START:
-        #     if 'climatisation' not in self.vehicle.domains and 'climatisationSettings' not in self.vehicle.domains['climatisation']:
-        #         raise ControlError('Could not control climatisation, there are no climatisationSettings for the vehicle available.')
-        #     climatizationSettings = self.vehicle.domains['climatisation']['climatisationSettings']
-        #     for child in climatizationSettings.getLeafChildren():
-        #         if isinstance(child, ChangeableAttribute):
-        #             settingsDict[child.getLocalAddress()] = child.value
-        #     if temperature is not None:
-        #         if 'targetTemperature_C' in settingsDict:
-        #             settingsDict['targetTemperature_C'] = temperature
-        #         settingsDict['targetTemperature_K'] = celsiusToKelvin(temperature)
-        #     elif 'targetTemperature_K' not in settingsDict:
-        #         if 'targetTemperature_C' in settingsDict:
-        #             settingsDict['targetTemperature_K'] = celsiusToKelvin(settingsDict['targetTemperature_C'])
-        #         elif 'targetTemperature_F' in settingsDict:
-        #             settingsDict['targetTemperature_K'] = farenheitToKelvin(settingsDict['targetTemperature_F'])
-        #         else:
-        #             settingsDict['targetTemperature_K'] = celsiusToKelvin(20.5)
+            # Do API request to set temperature
+            data = json.dumps(settingsDict)
+            controlResponse = self.vehicle.fetcher.put(
+                url=f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vehicle.vin.value}/climatisation/requests/settings',
+                data=data,
+                allow_redirects=True,
+                headers={
+                    "accept": '*/*',
+                    "user-agent": "CUPRAApp%20-%20Store/20220207 CFNetwork/1240.0.4 Darwin/20.6.0",
+                    "Content-Type": "application/json",
+                    "accept-language": "de-de",
+                    "Accept-Encoding": "gzip, deflate"
+                } )
+            if controlResponse.status_code != requests.codes['ok']:
+                errorDict = controlResponse.json()
+                if errorDict is not None and 'error' in errorDict:
+                    error = Error(localAddress='error', parent=self, fromDict=errorDict['error'])
+                    if error is not None:
+                        message = ''
+                        if error.message.enabled and error.message.value is not None:
+                            message += error.message.value
+                        if error.info.enabled and error.info.value is not None:
+                            message += ' - ' + error.info.value
+                        if error.retry.enabled and error.retry.value is not None:
+                            if error.retry.value:
+                                message += ' - Please retry in a moment'
+                            else:
+                                message += ' - No retry possible'
+                        raise SetterError(f'Could not control climatisation ({message})')
+                    else:
+                        raise SetterError(f'Could not control climatisation ({controlResponse.status_code})')
+                raise SetterError(f'Could not control climatisation ({controlResponse.status_code})')
 
-        # Do API request
-
-        # Providing a body results in a 415 error
-        # data = json.dumps(settingsDict)
-        # controlResponse = self.vehicle.fetcher.post(url, data=data, allow_redirects=True)
-
-        controlResponse = self.vehicle.fetcher.post(url, allow_redirects=True)
+        # Do API request to set run state
+        controlResponse = self.vehicle.fetcher.post(
+            url=f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/climatisation/requests/{control.value}',
+            allow_redirects=True,
+            headers={
+                "accept": '*/*',
+                "user-agent": "CUPRAApp%20-%20Store/20220207 CFNetwork/1240.0.4 Darwin/20.6.0",
+                "Content-Type": "application/json",
+                "accept-language": "de-de",
+                "Accept-Encoding": "gzip, deflate"
+            } )
         if controlResponse.status_code != requests.codes['ok']:
             errorDict = controlResponse.json()
             if errorDict is not None and 'error' in errorDict:
@@ -114,36 +150,48 @@ class Controls(AddressableObject):
                 self.vehicle.requestTracker.trackRequest(responseDict['data']['requestID'], Domain.CLIMATISATION, 20, 120)
 
     def __setChargingControlChange(self, value):  # noqa: C901
-        if value in [ControlOperation.START, ControlOperation.STOP]:
-            url = f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/charging/requests/{value.value}'
+        # Validate inputs
+        if value not in [ControlOperation.START, ControlOperation.STOP]:
+            return
+        
+        # Do API request
+        controlResponse = self.vehicle.fetcher.post(
+            url=f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vehicle.vin.value}/charging/requests/{value.value}',
+            data='{}',
+            allow_redirects=True,
+            headers={
+                "accept": '*/*',
+                "user-agent": "CUPRAApp%20-%20Store/20220207 CFNetwork/1240.0.4 Darwin/20.6.0",
+                "Content-Type": "application/json",
+                "accept-language": "de-de",
+                "Accept-Encoding": "gzip, deflate"
+            } )
+        # Handle response
+        if controlResponse.status_code != requests.codes['ok']:
+            errorDict = controlResponse.json()
+            if errorDict is not None and 'error' in errorDict:
+                error = Error(localAddress='error', parent=self, fromDict=errorDict['error'])
+                if error is not None:
+                    message = ''
+                    if error.message.enabled and error.message.value is not None:
+                        message += error.message.value
+                    if error.info.enabled and error.info.value is not None:
+                        message += ' - ' + error.info.value
+                    if error.retry.enabled and error.retry.value is not None:
+                        if error.retry.value:
+                            message += ' - Please retry in a moment'
+                        else:
+                            message += ' - No retry possible'
+                    raise SetterError(f'Could not control charging ({message})')
+                else:
+                    raise SetterError(f'Could not control charging ({controlResponse.status_code})')
+            raise SetterError(f'Could not control charging ({controlResponse.status_code})')
 
-            # Do API request
-            controlResponse = self.vehicle.fetcher.post(url, data='{}', allow_redirects=True)
-            if controlResponse.status_code != requests.codes['ok']:
-                errorDict = controlResponse.json()
-                if errorDict is not None and 'error' in errorDict:
-                    error = Error(localAddress='error', parent=self, fromDict=errorDict['error'])
-                    if error is not None:
-                        message = ''
-                        if error.message.enabled and error.message.value is not None:
-                            message += error.message.value
-                        if error.info.enabled and error.info.value is not None:
-                            message += ' - ' + error.info.value
-                        if error.retry.enabled and error.retry.value is not None:
-                            if error.retry.value:
-                                message += ' - Please retry in a moment'
-                            else:
-                                message += ' - No retry possible'
-                        raise SetterError(f'Could not control charging ({message})')
-                    else:
-                        raise SetterError(f'Could not control charging ({controlResponse.status_code})')
-                raise SetterError(f'Could not control charging ({controlResponse.status_code})')
-
-            # Build up response
-            responseDict = controlResponse.json()
-            if 'data' in responseDict and 'requestID' in responseDict['data']:
-                if self.vehicle.requestTracker is not None:
-                    self.vehicle.requestTracker.trackRequest(responseDict['data']['requestID'], Domain.CHARGING, 20, 120)
+        # Maybe send response to request tracker
+        responseDict = controlResponse.json()
+        if 'data' in responseDict and 'requestID' in responseDict['data']:
+            if self.vehicle.requestTracker is not None:
+                self.vehicle.requestTracker.trackRequest(responseDict['data']['requestID'], Domain.CHARGING, 20, 120)
 
     def __setWakeupControlChange(self, value):  # noqa: C901
         if value in [ControlOperation.START]:

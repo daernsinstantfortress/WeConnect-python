@@ -108,14 +108,11 @@ class Fetcher:
 
         return data
 
-    def post(self, url, data=None, allow_redirects=True):
-        return self.session.post(url=url, data=data, allow_redirects=allow_redirects, headers={
-            "accept": '*/*',
-            "user-agent": "CUPRAApp%20-%20Store/20220207 CFNetwork/1240.0.4 Darwin/20.6.0",
-            "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
-            "accept-language": "de-de",
-            "Accept-Encoding": "gzip, deflate"
-        })
+    def post(self, url, data=None, allow_redirects=True, headers={}):
+        return self.session.post(url=url, data=data, allow_redirects=allow_redirects, headers=headers)
+
+    def put(self, url, data=None, allow_redirects=True, headers={}):
+        return self.session.put(url=url, data=data, allow_redirects=allow_redirects, headers=headers)
 
     @property
     def user_id(self):
