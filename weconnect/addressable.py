@@ -306,7 +306,7 @@ class AddressableAttribute(AddressableLeaf, Generic[T]):
                         self.setValueWithCarTime(self.valueType(fromDict[key]), lastUpdateFromCar=None, fromServer=True)
                     except ValueError:
                         self.setValueWithCarTime(self.valueType.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-                        LOG.warning('%s: An unsupported %s: %s was provided, known values are [%s]'
+                        LOG.debug('%s: An unsupported %s: %s was provided, known values are [%s]'
                                     ' please report this as a bug', self.getGlobalAddress(), key, fromDict[key],
                                     ', '.join([state.value for state in list(self.valueType)]))
                 else:
