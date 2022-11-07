@@ -297,9 +297,12 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             # Create a charging domain object
             self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
 
-            charging_settings_dict = {
-                'targetSOC_pct': charging_dict['targetPct']
-            }
+            # charging_settings_dict = {
+            #     'targetSOC_pct': charging_dict['targetPct']
+            # }
+            charging_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
+            charging_settings_dict['targetSOC_pct'] = charging_settings_dict['targetSoc_pct']
+            del charging_settings_dict['targetSoc_pct']
             self.domains[Domain.CHARGING.value]['chargingSettings'] = ChargingSettings(vehicle=self,
                 parent=self.domains[Domain.CHARGING.value],
                 statusId='chargingSettings',

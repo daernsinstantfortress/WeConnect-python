@@ -61,7 +61,7 @@ class GenericStatus(AddressableObject):
                         carCapturedTimestamp -= timedelta(hours=0, minutes=30)
                         fixed -= timedelta(hours=0, minutes=30)
                     if fixed > timedelta(hours=0, minutes=0):
-                        LOG.warning('%s: Attribute carCapturedTimestamp was in the future. Substracted %s to fix this.'
+                        LOG.debug('%s: Attribute carCapturedTimestamp was in the future. Substracted %s to fix this.'
                                     ' This is a problem of the weconnect API and might be fixed in the future',
                                     self.getGlobalAddress(), fixed)
                     if carCapturedTimestamp == datetime(year=2000, month=1, day=1, hour=0, minute=0, second=0,
@@ -79,7 +79,7 @@ class GenericStatus(AddressableObject):
                 for key, value in {key: value for key, value in fromDict['value'].items()
                                    if key not in (['carCapturedTimestamp'] + ignoreAttributes)
                                    }.items():
-                    LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+                    LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
         else:
             self.carCapturedTimestamp.setValueWithCarTime(None, fromServer=True)
             self.carCapturedTimestamp.enabled = False
@@ -121,7 +121,7 @@ class GenericStatus(AddressableObject):
         if isinstance(fromDict, Dict):
             for key, value in {key: value for key, value in fromDict.items()
                             if key not in (['value', 'error', 'requests'] + ['carCapturedTimestamp'] + ignoreAttributes)}.items():
-                LOG.warning('%s: Unknown element %s with value %s', self.getGlobalAddress(), key, value)
+                LOG.debug('%s: Unknown element %s with value %s', self.getGlobalAddress(), key, value)
 
     def __str__(self) -> str:
         returnString: str = f'[{self.id}]'

@@ -39,7 +39,7 @@ class GenericCapability(AddressableObject):
                     statuses.append(GenericCapability.Status(status))
                 except ValueError:
                     statuses.append(GenericCapability.Status(GenericCapability.Status.UNKNOWN))
-                    LOG.warning('An unsupported status: %s was provided, please report this as a bug', status)
+                    LOG.debug('An unsupported status: %s was provided, please report this as a bug', status)
             self.status.setValueWithCarTime(statuses, lastUpdateFromCar=None, fromServer=True)
         else:
             self.status.enabled = False
@@ -49,7 +49,7 @@ class GenericCapability(AddressableObject):
 
         for key, value in {key: value for key, value in fromDict.items()
                            if key not in ['id', 'status', 'expirationDate', 'userDisablingAllowed']}.items():
-            LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
+            LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
 
     def __str__(self):
         returnString = f'[{self.id.value}]'

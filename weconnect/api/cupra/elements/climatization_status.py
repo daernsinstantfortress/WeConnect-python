@@ -1,15 +1,14 @@
 from enum import Enum
 import logging
 
-from weconnect.addressable import AddressableAttribute, AddressableLeaf, ChangeableAttribute
+from weconnect.addressable import AddressableAttribute
 from weconnect.api.cupra.elements.enums import ClimatizationState
-from weconnect.api.cupra.elements.generic_settings import GenericSettings
 from weconnect.api.cupra.elements.generic_status import GenericStatus
 
 LOG = logging.getLogger("weconnect")
 
 
-class ClimatizationStatus(GenericSettings):
+class ClimatizationStatus(GenericStatus):
     def __init__(
         self,
         vehicle,
@@ -20,16 +19,9 @@ class ClimatizationStatus(GenericSettings):
     ):
         self.remainingClimatisationTime_min = AddressableAttribute(
             localAddress='remainingClimatisationTime_min', parent=self, value=None, valueType=int)
-        # self.climatisationState = AddressableAttribute(localAddress='climatisationState', value=None, parent=self,
-        #                                                valueType=ClimatizationStatus.ClimatizationState)
-        self.climatisationState = ChangeableAttribute(
-            localAddress='climatisationState', parent=self, value=None, valueType=ClimatizationState)
+        self.climatisationState = AddressableAttribute(localAddress='climatisationState', value=None, parent=self,
+                                                       valueType=ClimatizationState)
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
-
-        self.climatisationState.addObserver(
-            self.valueChanged, AddressableLeaf.ObserverEvent.VALUE_CHANGED,
-            priority=AddressableLeaf.ObserverPriority.INTERNAL_MID)
-
 
     def update(self, fromDict, ignoreAttributes=None):
         ignoreAttributes = ignoreAttributes or []

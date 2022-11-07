@@ -22,7 +22,7 @@ class ChargingSettings(GenericSettings):
                                                              parent=self, valueType=UnlockPlugState)
         self.autoUnlockPlugWhenChargedAC = ChangeableAttribute(localAddress='autoUnlockPlugWhenChargedAC', value=None,
                                                                parent=self, valueType=UnlockPlugState)
-        self.targetSOC_pct = ChangeableAttribute(localAddress='targetSOC_pct', value=None, parent=self, valueType=int)
+        self.targetSOC_pct = ChangeableAttribute(localAddress='targetSOC_pct', value=None, parent=self, valueType=float)
         
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
 

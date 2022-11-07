@@ -111,8 +111,8 @@ class Fetcher:
     def post(self, url, data=None, allow_redirects=True, headers={}):
         return self.session.post(url=url, data=data, allow_redirects=allow_redirects, headers=headers)
 
-    def put(self, url, data=None, allow_redirects=True, headers={}):
-        return self.session.put(url=url, data=data, allow_redirects=allow_redirects, headers=headers)
+    def put(self, url, data=None, json=None, allow_redirects=True, headers={}):
+        return self.session.put(url=url, data=data, json=json, allow_redirects=allow_redirects, headers=headers)
 
     @property
     def user_id(self):
