@@ -312,10 +312,19 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.domains[Domain.CHARGING.value]['chargingSettings'].update(charging_settings_dict)
 
             # Set charging status domain key
+            # charging_status_dict = {
+            #     'remainingTime': charging_dict['remainingTime'],
+            #     'status': charging_dict['status'],
+            #     'chargeMode': charging_dict['chargeMode'],
+            # }
+            current_charging_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
             charging_status_dict = {
-                'remainingTime': charging_dict['remainingTime'],
+                'remainingTime': current_charging_status_dict['charging']['remainingChargingTimeToComplete_min'],
+                # 'status': current_charging_status_dict['charging']['chargingState'],
                 'status': charging_dict['status'],
-                'chargeMode': charging_dict['chargeMode'],
+                'chargeMode': current_charging_status_dict['charging']['chargeMode'],
+                'chargePower_kW': current_charging_status_dict['charging']['chargePower_kW'],
+                'chargeRate_kmph': current_charging_status_dict['charging']['chargeRate_kmph']
             }
             self.domains[Domain.CHARGING.value]['chargingStatus'] = ChargingStatus(vehicle=self,
                 parent=self.domains[Domain.CHARGING.value],

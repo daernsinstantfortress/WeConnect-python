@@ -71,6 +71,7 @@ class CupraApi:
                             selective=selective)
                 except RetrievalError as retrievalError:
                     LOG.error('Failed to retrieve data for VIN %s: %s', vin, retrievalError)
+                    LOG.error(retrievalError)
             # delete those vins that are not anymore available
             for vin in [vin for vin in self.__vehicles if vin not in vins]:
                 del self.__vehicles[vin]
