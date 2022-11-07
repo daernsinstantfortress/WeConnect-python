@@ -297,9 +297,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             # Create a charging domain object
             self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
 
-            # charging_settings_dict = {
-            #     'targetSOC_pct': charging_dict['targetPct']
-            # }
             charging_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
             charging_settings_dict['targetSOC_pct'] = charging_settings_dict['targetSoc_pct']
             del charging_settings_dict['targetSoc_pct']
@@ -312,11 +309,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.domains[Domain.CHARGING.value]['chargingSettings'].update(charging_settings_dict)
 
             # Set charging status domain key
-            # charging_status_dict = {
-            #     'remainingTime': charging_dict['remainingTime'],
-            #     'status': charging_dict['status'],
-            #     'chargeMode': charging_dict['chargeMode'],
-            # }
             current_charging_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
             charging_status_dict = {
                 'remainingTime': current_charging_status_dict['charging']['remainingChargingTimeToComplete_min'],

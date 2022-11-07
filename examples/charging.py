@@ -2,7 +2,6 @@ import argparse
 import logging
 
 from weconnect import weconnect
-from weconnect.api.cupra.elements.enums import MaximumChargeCurrent, UnlockPlugState
 from weconnect.service import Service
 
 
@@ -13,25 +12,31 @@ def main():
         description='Example starting climatizaton')
     parser.add_argument('-u', '--username', help='Username of Volkswagen id', required=True)
     parser.add_argument('-p', '--password', help='Password of Volkswagen id', required=True)
+    parser.add_argument('-d', '--debug', help='Turn on debug logging', default=False, action='store_true')
     parser.add_argument('--service', help='Service to connect to. One of WeConnect, MyCupra', required=True)
     parser.add_argument('--vin', help='VIN of the vehicle to set charging', required=True)
     # Properties that modify car state
     parser.add_argument('--state', help='Charging state. One of start, stop', required=False)
     parser.add_argument('--target-soc', help='Target state of charge for car', required=False)
-    parser.add_argument('--auto-unlock-plug-when-charged', help='Auto unlock plug when charged. One of on or off', required=False)
+    parser.add_argument('--auto-unlock-plug-when-charged', help='Auto unlock plug when charged. One of permanent or off', required=False)
     parser.add_argument('--max-charge-current-ac', help='Set max charge current level. One of maximum or reduced', required=False)
 
     args = parser.parse_args()
 
-    # logging.basicConfig(level=logging.DEBUG)
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
 
     # Construct based on service
     print('#  Initialize')
     service = Service(args.service)
     if service == Service.WE_CONNECT:
         from weconnect.api.vw.elements.control_operation import ControlOperation
+        from weconnect.api.vw.domain import Domain
+        from weconnect.api.vw.elements.enums import MaximumChargeCurrent, UnlockPlugState
     elif service == Service.MY_CUPRA:
         from weconnect.api.cupra.elements.control_operation import ControlOperation
+        from weconnect.api.cupra.domain import Domain
+        from weconnect.api.cupra.elements.enums import MaximumChargeCurrent, UnlockPlugState
     weConnect = weconnect.WeConnect(username=args.username, password=args.password,
         updateAfterLogin=False, loginOnInit=False,
         service=service)
@@ -80,6 +85,18 @@ def main():
                 and vehicle.domains["charging"]["chargingStatus"].enabled \
                 and vehicle.domains["charging"]["chargingStatus"].chargingSettings.enabled:
                     print('   chargingSettings', vehicle.domains["charging"]["chargingStatus"].chargingSettings.value)
+
+            print('#  battery status')
+            if "charging" in vehicle.domains \
+                and 'chargingStatus' in vehicle.domains["charging"] \
+                and vehicle.domains["charging"]["batteryStatus"].enabled \
+                and vehicle.domains["charging"]["batteryStatus"].currentSOC_pct.enabled:
+                    print('   currentSOC_pct', vehicle.domains["charging"]["batteryStatus"].currentSOC_pct.value)
+            if "charging" in vehicle.domains \
+                and 'chargingStatus' in vehicle.domains["charging"] \
+                and vehicle.domains["charging"]["batteryStatus"].enabled \
+                and vehicle.domains["charging"]["batteryStatus"].cruisingRangeElectric_km.enabled:
+                    print('   cruisingRangeElectric_km', vehicle.domains["charging"]["batteryStatus"].cruisingRangeElectric_km.value)
 
             print('#  charging settings')
             if "charging" in vehicle.domains \
