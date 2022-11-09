@@ -3,7 +3,7 @@ from typing import List
 import logging
 
 from weconnect.addressable import AddressableAttribute, AddressableObject
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 
 LOG = logging.getLogger("weconnect")
 

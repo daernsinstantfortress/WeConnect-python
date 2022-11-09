@@ -1,5 +1,5 @@
 from enum import Enum
-from weconnect.api.vw.elements.control_operation import ControlInputEnum
+from weconnect.elements.control_operation import ControlInputEnum
 
 
 class MaximumChargeCurrent(ControlInputEnum,):

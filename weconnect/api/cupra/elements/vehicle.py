@@ -4,21 +4,21 @@ from enum import Enum
 import logging
 
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
-from weconnect.api.cupra.elements.charging_settings import ChargingSettings
-from weconnect.api.cupra.elements.controls import Controls
-from weconnect.api.cupra.elements.generic_status import GenericStatus
-from weconnect.api.cupra.elements.generic_capability import GenericCapability
-from weconnect.api.cupra.elements.charging_status import ChargingStatus
-from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
-from weconnect.api.cupra.elements.error import Error
-from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
-from weconnect.api.cupra.elements.battery_status import BatteryStatus
+from weconnect.elements.generic_status import GenericStatus
+from weconnect.elements.error import Error
 from weconnect.errors import APICompatibilityError, APIError
 from weconnect.util import kelvinToCelsius, kelvinToFarenheit, toBool
 from weconnect.api.cupra.domain import Domain
 from weconnect.fetch import Fetcher
 from weconnect.api.cupra.elements.climatization_status import ClimatizationStatus
 from weconnect.api.cupra.elements.climatization_settings import ClimatizationSettings
+from weconnect.api.cupra.elements.charging_settings import ChargingSettings
+from weconnect.api.cupra.elements.controls import Controls
+from weconnect.api.cupra.elements.generic_capability import GenericCapability
+from weconnect.api.cupra.elements.charging_status import ChargingStatus
+from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
+from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
+from weconnect.api.cupra.elements.battery_status import BatteryStatus
 
 # Cupra
 from weconnect.api.cupra.elements.engine_state import EngineState
@@ -291,9 +291,12 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         # HACK map Cupra values back to VW values
         # We need this conditional otherwise it will fail if `data is not None`
         if Domain.SERVICES.value in self.domains:
+
+            # Extract original data from engines and services in /mycar
             charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
             engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
             climatization_dict = self.domains[Domain.SERVICES.value]['climatisation'].fromDict
+            
             # Create a charging domain object
             self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
 

@@ -2,7 +2,7 @@ from enum import Enum
 import logging
 
 from weconnect.addressable import AddressableObject, AddressableAttribute
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 from weconnect.util import toBool
 
 LOG = logging.getLogger("weconnect")

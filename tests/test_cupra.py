@@ -4,6 +4,7 @@ from weconnect import weconnect
 from weconnect.api.cupra.elements.climatization_settings import ClimatizationSettings
 from weconnect.api.cupra.elements.climatization_status import ClimatizationStatus
 from weconnect.api.cupra.elements.enums import ClimatizationState
+from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
 from weconnect.service import Service
 from weconnect.addressable import AddressableAttribute, AddressableDict, ChangeableAttribute
 from weconnect.api.cupra.elements.battery_status import BatteryStatus
@@ -27,7 +28,7 @@ def test_vehicles_element_minimal_construction_not_charging():
         base_url = 'https://example.com'
         user_id = 'USERID'
 
-        def fetchData(self, url, force):
+        def fetchData(self, url, force=None):
             # url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
             return {
                 "engines": {
@@ -136,10 +137,11 @@ def test_vehicles_element_minimal_construction_charging():
     class MockFetcher:
         base_url = 'https://example.com'
         user_id = 'USERID'
+        index = -1
 
-        def fetchData(self, url, force):
+        def fetchData(self, url, force=None):
             # url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
-            return {
+            responses = [{
                 "engines": {
                     "primary": {
                         "type": "EV",
@@ -174,7 +176,25 @@ def test_vehicles_element_minimal_construction_charging():
                         "progressBarPct": 0.0
                     }
                 }
-            }
+            },
+                {
+                'settings': {
+                    "targetSoc_pct": 78
+                }
+            },
+                {
+                'status': {
+                    'status': None,
+                    'charging': {
+                        'remainingChargingTimeToComplete_min': 355,
+                        "chargeMode": ChargingStatus.ChargeMode.MANUAL,
+                        "chargePower_kW": 0.0,
+                        "chargeRate_kmph": 0.0
+                    }
+                }
+            } ]
+            self.index += 1
+            return responses[self.index]
     fetcher = MockFetcher()
     vehicleDict = {
         'vin': 'VIN',
@@ -236,12 +256,20 @@ def test_construct_weconnect_like_ha_integration():
     # Then just make sure we did construction without an error
     assert True
 
+
 def test_climate_status():
     # Given
     class MockFetcher:
         called = False
+
         def post(self, url, *args):
             self.called = url
+
+        def fetchData(self, url, force=None):
+            return {
+                'settings': {}
+            }
+
     class MockVehicle:
         fetcher = MockFetcher()
         vin: AddressableAttribute[str] = AddressableAttribute(
@@ -264,10 +292,28 @@ def test_climate_status():
 
 def test_changeable_attribute():
     # Given
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            return {}
+
     class MockFetcher:
         called = False
+        put_called = False
+
         def post(self, url, *args):
             self.called = url
+
+        def fetchData(self, url, force=None):
+            return {
+                'settings': {}
+            }
+
+        def put(self, url, json, headers, *args):
+            self.put_called = url
+            return MockResponse()
+
     class MockVehicle:
         fetcher = MockFetcher()
         vin: AddressableAttribute[str] = AddressableAttribute(
@@ -283,9 +329,18 @@ def test_changeable_attribute():
         fromDict=climate_dict,
     )
     # When
-    climate.targetTemperature_K.value = 100;
+    climate.targetTemperature_K.value = 100
     # Then
     assert climate.targetTemperature_K.value == 100
     # There doesn't seem to be a way to set temp via the api
     assert vehicle.fetcher.called == False
 
+def test_odometer_measurement():
+    class MockVehicle:
+        fetcher = None
+        vin: AddressableAttribute[str] = AddressableAttribute(
+            localAddress='vin', parent=None, value='VINVINVIN', valueType=str)
+    vehicle = MockVehicle()
+    od = OdometerMeasurement(vehicle=vehicle, parent=None, statusId='odometer')
+    od.update(999)
+    assert od.odometer.value == 999

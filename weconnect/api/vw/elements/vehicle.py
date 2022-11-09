@@ -10,9 +10,11 @@ import logging
 from requests import exceptions, codes
 
 from weconnect.api.vw.elements.generic_settings import GenericSettings
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
 from weconnect.fetch import Fetcher
+from weconnect.elements.plug_status import PlugStatus
+from weconnect.elements.window_heating_status import WindowHeatingStatus
 from weconnect.api.vw.elements.generic_capability import GenericCapability
 from weconnect.api.vw.elements.generic_request_status import GenericRequestStatus
 from weconnect.api.vw.elements.controls import Controls
@@ -30,9 +32,7 @@ from weconnect.api.vw.elements.lights_status import LightsStatus
 from weconnect.api.vw.elements.maintenance_status import MaintenanceStatus
 from weconnect.api.vw.elements.warning_lights_status import WarningLightsStatus
 from weconnect.api.vw.elements.parking_position import ParkingPosition
-from weconnect.api.vw.elements.plug_status import PlugStatus
 from weconnect.api.vw.elements.range_status import RangeStatus
-from weconnect.api.vw.elements.window_heating_status import WindowHeatingStatus
 from weconnect.api.vw.elements.odometer_measurement import OdometerMeasurement
 from weconnect.api.vw.elements.range_measurements import RangeMeasurements
 from weconnect.api.vw.elements.readiness_status import ReadinessStatus
@@ -41,7 +41,7 @@ from weconnect.errors import APICompatibilityError, RetrievalError, APIError
 from weconnect.util import toBool
 from weconnect.weconnect_errors import ErrorEventType
 from weconnect.api.vw.domain import Domain
-from weconnect.api.vw.elements.error import Error
+from weconnect.elements.error import Error
 from weconnect.api.vw.elements.helpers.request_tracker import RequestTracker
 
 SUPPORT_IMAGES = False

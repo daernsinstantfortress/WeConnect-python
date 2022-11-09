@@ -7,7 +7,7 @@ from datetime import datetime
 from weconnect.addressable import AddressableObject, AddressableAttribute
 
 if TYPE_CHECKING:
-    from weconnect.api.vw.elements.generic_status import GenericStatus
+    from weconnect.elements.generic_status import GenericStatus
 
 LOG: logging.Logger = logging.getLogger("weconnect")
 

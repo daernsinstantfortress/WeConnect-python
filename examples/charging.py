@@ -30,11 +30,11 @@ def main():
     print('#  Initialize')
     service = Service(args.service)
     if service == Service.WE_CONNECT:
-        from weconnect.api.vw.elements.control_operation import ControlOperation
+        from weconnect.elements.control_operation import ControlOperation
         from weconnect.api.vw.domain import Domain
         from weconnect.api.vw.elements.enums import MaximumChargeCurrent, UnlockPlugState
     elif service == Service.MY_CUPRA:
-        from weconnect.api.cupra.elements.control_operation import ControlOperation
+        from weconnect.elements.control_operation import ControlOperation
         from weconnect.api.cupra.domain import Domain
         from weconnect.api.cupra.elements.enums import MaximumChargeCurrent, UnlockPlugState
     weConnect = weconnect.WeConnect(username=args.username, password=args.password,

@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 
 from weconnect.addressable import AddressableAttribute, AddressableDict
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 from weconnect.api.vw.elements.timer import Timer
 
 LOG = logging.getLogger("weconnect")

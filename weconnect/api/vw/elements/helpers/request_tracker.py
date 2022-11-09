@@ -6,7 +6,7 @@ import logging
 if TYPE_CHECKING:
     from weconnect.api.vw.elements.vehicle import Vehicle
 
-from weconnect.api.vw.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 from weconnect.api.vw.domain import Domain
 
 

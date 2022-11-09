@@ -6,7 +6,7 @@ import logging
 if TYPE_CHECKING:
     from weconnect.api.cupra.elements.vehicle import Vehicle
 
-from weconnect.api.cupra.elements.generic_status import GenericStatus
+from weconnect.elements.generic_status import GenericStatus
 from weconnect.api.cupra.domain import Domain
 
 

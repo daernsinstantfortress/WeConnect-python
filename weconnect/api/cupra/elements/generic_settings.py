@@ -5,8 +5,8 @@ import json
 import requests
 
 from weconnect.addressable import AddressableLeaf, ChangeableAttribute, AliasChangeableAttribute
-from weconnect.api.cupra.elements.generic_status import GenericStatus
-from weconnect.api.cupra.elements.error import Error
+from weconnect.elements.generic_status import GenericStatus
+from weconnect.elements.error import Error
 from weconnect.errors import SetterError
 from weconnect.api.cupra.domain import Domain
 

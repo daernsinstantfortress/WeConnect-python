@@ -5,13 +5,10 @@ from enum import Enum
 import logging
 from datetime import datetime, timedelta, timezone
 
-if TYPE_CHECKING:
-    from weconnect.api.cupra.elements.vehicle import Vehicle
-
 from weconnect.util import robustTimeParse
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableList, AddressableDict
-from weconnect.api.cupra.elements.control_operation import ControlOperation
-from weconnect.api.cupra.elements.error import Error
+from weconnect.elements.control_operation import ControlOperation
+from weconnect.elements.error import Error
 
 LOG: logging.Logger = logging.getLogger("weconnect")
 
@@ -19,13 +16,13 @@ LOG: logging.Logger = logging.getLogger("weconnect")
 class GenericStatus(AddressableObject):
     def __init__(
         self,
-        vehicle: Vehicle,
+        vehicle,
         parent: AddressableDict[str, GenericStatus],
         statusId: str,
         fromDict: Optional[Dict[str, Any]] = None,
         fixAPI: bool = True,
     ) -> None:
-        self.vehicle: Vehicle = vehicle
+        self.vehicle = vehicle
         self.fixAPI: bool = fixAPI
         super().__init__(localAddress=statusId, parent=parent)
         self.id: str = statusId
@@ -33,6 +30,7 @@ class GenericStatus(AddressableObject):
             localAddress='carCapturedTimestamp', parent=self, value=None, valueType=datetime)
         self.error: Error = Error(localAddress='error', parent=self)
         self.requests: AddressableDict[GenericStatus.Request] = AddressableDict(localAddress='request', parent=self)
+
         self.fromDict = fromDict
         if fromDict is not None:
             self.update(fromDict=fromDict)

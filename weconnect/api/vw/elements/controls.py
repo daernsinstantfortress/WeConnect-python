@@ -3,10 +3,10 @@ import json
 import requests
 
 from weconnect.addressable import AddressableObject, ChangeableAttribute
-from weconnect.api.vw.elements.control_operation import ControlOperation
+from weconnect.elements.control_operation import ControlOperation
 from weconnect.api.vw.elements.charging_settings import ChargingSettings
 from weconnect.api.vw.elements.climatization_settings import ClimatizationSettings
-from weconnect.api.vw.elements.error import Error
+from weconnect.elements.error import Error
 from weconnect.errors import ControlError, SetterError
 from weconnect.util import celsiusToKelvin, farenheitToKelvin
 from weconnect.api.vw.domain import Domain
