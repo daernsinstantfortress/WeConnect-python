@@ -46,74 +46,24 @@ def main():
     print('#  Update')
     weConnect.update()
 
+    print('#  Report')
     for vin, vehicle in weConnect.vehicles.items():
         if vin == args.vin:
 
-            print('#  charging status')
             if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargingState.enabled:
-                    print('   chargingState', vehicle.domains["charging"]["chargingStatus"].chargingState.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].remainingChargingTimeToComplete_min.enabled:
-                    print('   remainingChargingTimeToComplete_min', vehicle.domains["charging"]["chargingStatus"].remainingChargingTimeToComplete_min.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargeMode.enabled:
-                    print('   chargeMode', vehicle.domains["charging"]["chargingStatus"].chargeMode.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargePower_kW.enabled:
-                    print('   chargePower_kW', vehicle.domains["charging"]["chargingStatus"].chargePower_kW.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargeRate_kmph.enabled:
-                    print('   chargeRate_kmph', vehicle.domains["charging"]["chargingStatus"].chargeRate_kmph.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargeType.enabled:
-                    print('   chargeType', vehicle.domains["charging"]["chargingStatus"].chargeType.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingStatus"].enabled \
-                and vehicle.domains["charging"]["chargingStatus"].chargingSettings.enabled:
-                    print('   chargingSettings', vehicle.domains["charging"]["chargingStatus"].chargingSettings.value)
+                and 'chargingSettings' in vehicle.domains["charging"] \
+                and vehicle.domains["charging"]["chargingSettings"].enabled:
+                print(vehicle.domains["charging"]["chargingSettings"])
 
-            print('#  battery status')
             if "charging" in vehicle.domains \
                 and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["batteryStatus"].enabled \
-                and vehicle.domains["charging"]["batteryStatus"].currentSOC_pct.enabled:
-                    print('   currentSOC_pct', vehicle.domains["charging"]["batteryStatus"].currentSOC_pct.value)
-            if "charging" in vehicle.domains \
-                and 'chargingStatus' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["batteryStatus"].enabled \
-                and vehicle.domains["charging"]["batteryStatus"].cruisingRangeElectric_km.enabled:
-                    print('   cruisingRangeElectric_km', vehicle.domains["charging"]["batteryStatus"].cruisingRangeElectric_km.value)
+                and vehicle.domains["charging"]["chargingStatus"].enabled:
+                print(vehicle.domains["charging"]["chargingStatus"])
 
-            print('#  charging settings')
             if "charging" in vehicle.domains \
-                and 'chargingSettings' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingSettings"].enabled \
-                and vehicle.domains["charging"]["chargingSettings"].targetSOC_pct.enabled:
-                    print('   targetSOC_pct', vehicle.domains["charging"]["chargingSettings"].targetSOC_pct.value)
-            if "charging" in vehicle.domains \
-                and 'chargingSettings' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingSettings"].enabled \
-                and vehicle.domains["charging"]["chargingSettings"].maxChargeCurrentAC.enabled:
-                    print('   maxChargeCurrentAC', vehicle.domains["charging"]["chargingSettings"].maxChargeCurrentAC.value)
-            if "charging" in vehicle.domains \
-                and 'chargingSettings' in vehicle.domains["charging"] \
-                and vehicle.domains["charging"]["chargingSettings"].enabled \
-                and vehicle.domains["charging"]["chargingSettings"].autoUnlockPlugWhenCharged.enabled:
-                    print('   autoUnlockPlugWhenCharged', vehicle.domains["charging"]["chargingSettings"].autoUnlockPlugWhenCharged.value)
+                and 'batteryStatus' in vehicle.domains["charging"] \
+                and vehicle.domains["charging"]["batteryStatus"].enabled:
+                print(vehicle.domains["charging"]["batteryStatus"])
 
             # Maybe change charging state
             if args.state:

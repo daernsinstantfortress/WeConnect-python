@@ -32,16 +32,19 @@ def main():
     print('#  Update')
     weConnect.update()
 
+    print('#  Report')
     for vin, vehicle in weConnect.vehicles.items():
-        print(vin)
         if vin == args.vin:
             if "climatisation" in vehicle.domains \
                     and "climatisationStatus" in vehicle.domains["climatisation"] \
                     and vehicle.domains["climatisation"]["climatisationStatus"].enabled:
-                if vehicle.domains["climatisation"]["climatisationStatus"].climatisationState.enabled:
-                    print('#  climatization status')
-                    print(vehicle.domains["climatisation"]["climatisationStatus"].climatisationState.value)
+                print(vehicle.domains["climatisation"]["climatisationStatus"])
 
+            if "climatisation" in vehicle.domains \
+                    and "climatisationSettings" in vehicle.domains["climatisation"] \
+                    and vehicle.domains["climatisation"]["climatisationSettings"].enabled:
+                print(vehicle.domains["climatisation"]["climatisationSettings"])
+            
             if args.state:
                 if vehicle.controls.climatizationControl is not None and vehicle.controls.climatizationControl.enabled:
                     print('#  set climatization')
