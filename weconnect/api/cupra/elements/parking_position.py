@@ -23,18 +23,9 @@ class ParkingPosition(GenericStatus):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update ParkingPosition from dict')
 
-        # rename dict key to match new structure
-        if 'data' in fromDict:
-            fromDict['value'] = fromDict['data']
-            del fromDict['data']
-
-        # Cupra ?
-        # if 'value' not in fromDict:
-        #     fromDict['value'] = fromDict
-
-        if 'value' in fromDict:
-            self.latitude.fromDict(fromDict['value'], 'lat')
-            self.longitude.fromDict(fromDict['value'], 'lon')
+        if 'lat' in fromDict and 'lon' in fromDict:
+            self.latitude.fromDict(fromDict, 'lat')
+            self.longitude.fromDict(fromDict, 'lon')
         else:
             self.latitude.enabled = False
             self.longitude.enabled = False

@@ -51,7 +51,7 @@ class OpenIDSession(requests.Session):
         if newValue:
             # Retry on internal server error (500)
             retries = Retry(total=newValue,
-                            backoff_factor=0.1,
+                            backoff_factor=2,
                             status_forcelist=[500],
                             raise_on_status=False)
             self.mount('https://', HTTPAdapter(max_retries=retries))

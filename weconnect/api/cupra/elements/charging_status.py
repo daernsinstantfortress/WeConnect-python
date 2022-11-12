@@ -40,8 +40,8 @@ class ChargingStatus(GenericStatus):
             fromDict['value'] = fromDict
 
         if 'value' in fromDict:
-            self.remainingChargingTimeToComplete_min.fromDict(fromDict['value'], 'remainingTime')
-            self.chargingState.fromDict(fromDict['value'], 'status')
+            self.remainingChargingTimeToComplete_min.fromDict(fromDict['value'], 'remainingChargingTimeToComplete_min')
+            self.chargingState.fromDict(fromDict['value'], 'chargingState')
             self.chargeMode.fromDict(fromDict['value'], 'chargeMode')
             self.chargePower_kW.fromDict(fromDict['value'], 'chargePower_kW')
             if 'chargePower_kW' in fromDict['value']:
@@ -108,19 +108,18 @@ class ChargingStatus(GenericStatus):
             string += f'\n\tCharging Settings: {self.chargingSettings.value}'
         return string
 
-    # Many of these are guessed based on observed patterns
     class ChargingState(Enum,):
         OFF = 'off'
-        READY_FOR_CHARGING = 'ReadyForCharging'
-        NOT_READY_FOR_CHARGING = 'NotReadyForCharging'
-        CONSERVATION = 'Conservation'
-        CHARGE_PURPOSE_REACHED_NOT_CONSERVATION_CHARGING = 'ChargePurposeReachedAndNotConservationCharging'
-        CHARGE_PURPOSE_REACHED_CONSERVATION = 'ChargePurposeReachedAndConservation'
-        CHARGING = 'Charging'
-        ERROR = 'Error'
-        UNSUPPORTED = 'Unsupported'
-        DISCHARGING = 'Discharging'
-        UNKNOWN = 'Unknown charging state'
+        READY_FOR_CHARGING = 'readyForCharging'
+        NOT_READY_FOR_CHARGING = 'notReadyForCharging'
+        CONSERVATION = 'conservation'
+        CHARGE_PURPOSE_REACHED_NOT_CONSERVATION_CHARGING = 'chargePurposeReachedAndNotConservationCharging'
+        CHARGE_PURPOSE_REACHED_CONSERVATION = 'chargePurposeReachedAndConservation'
+        CHARGING = 'charging'
+        ERROR = 'error'
+        UNSUPPORTED = 'unsupported'
+        DISCHARGING = 'discharging'
+        UNKNOWN = 'unknown charging state'
 
     class ChargeMode(Enum,):
         MANUAL = 'manual'

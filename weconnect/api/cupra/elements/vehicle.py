@@ -4,6 +4,7 @@ from enum import Enum
 import logging
 
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
+from weconnect.api.cupra.elements.parking_position import ParkingPosition
 from weconnect.elements.generic_status import GenericStatus
 from weconnect.elements.error import Error
 from weconnect.errors import APICompatibilityError, APIError
@@ -109,6 +110,26 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             return True
         return False
 
+    def assign_properties_to_domain(self, klass, properties: dict, domain_value: str, settings_key: str) -> DomainDict:
+        if domain_value not in self.domains:
+            self.domains[domain_value] = DomainDict(localAddress=domain_value, parent=self.domains)
+            self.domains[domain_value].enabled = True
+        # Create a settings object
+        if settings_key in self.domains[domain_value]:
+            LOG.debug('Status %s exists, updating it', settings_key)
+            self.domains[domain_value][settings_key].update(fromDict=properties)
+            self.domains[domain_value][settings_key].enabled = True
+        else:
+            LOG.debug('Status %s does not exist, creating it', settings_key)
+            self.domains[domain_value][settings_key] = klass(vehicle=self,
+                parent=self.domains[domain_value],
+                statusId=settings_key,
+                fixAPI=self.fixAPI,
+                fromDict=properties)
+            # We also have to call update(), not just pass fromDict to constructor
+            self.domains[domain_value][settings_key].update(fromDict=properties)
+            self.domains[domain_value][settings_key].enabled = True
+
     def update(  # noqa: C901  # pylint: disable=too-many-branches
         self,
         fromDict: Dict[str, Any] = {},
@@ -192,186 +213,61 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
 
     def updateStatus(self, updateCapabilities: bool = True, force: bool = False,  # noqa: C901 # pylint: disable=too-many-branches
                 selective: Optional[list[Domain]] = None):
-
-        jobKeyClassMap: Dict[Domain, Dict[str, Type[GenericStatus]]] = {
-            Domain.MEASUREMENTS: {
-                'mileageKm': OdometerMeasurement,
-            },
-
-            # We will map cupra values to these standard ones
-            Domain.CHARGING: {
-                'batteryStatus': BatteryStatus,
-                'chargingStatus': ChargingStatus,
-                'chargingSettings': ChargingSettings,
-            },
-            Domain.CLIMATISATION: {
-                'climatisationStatus': ClimatizationStatus,
-                'climatisationSettings': ClimatizationSettings,
-                # 'windowHeatingStatus': WindowHeatingStatus,
-                # 'climatisationRequestStatus': GenericRequestStatus,
-                # 'climatisationSettingsRequestStatus': GenericRequestStatus,
-            },
-
-            # Cupra only
-            Domain.SERVICES: {
-                'charging': ChargingStatus,     # -> Domain.CHARGING chargingStatus
-                'climatisation': ClimatizationStatus
-            },
-            Domain.ENGINES: {
-                'primary': EngineState
-            }
-        }
+        """Update vehicle status and settings domains, as well as controls, following calls to API"""
 
         if self.vin.value is None:
             raise APIError('VIN value is not set')
-        if selective is None:
-            jobs = [domain.value for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE]
-        elif Domain.ALL_CAPABLE in selective:
-            if self.capabilities:
-                jobs = []
-                for dom in [domain for domain in Domain if domain != Domain.ALL and domain != Domain.ALL_CAPABLE]:
-                    if dom.value in self.capabilities and self.capabilities[dom.value].enabled and not self.capabilities[dom.value].status.enabled:
-                        jobs.append(dom.value)
-                if updateCapabilities:
-                    jobs.append(Domain.USER_CAPABILITIES.value)
-            else:
-                jobs = ['all']
-        elif Domain.ALL in selective:
-            jobs = ['all']
-        else:
-            jobs = [domain.value for domain in selective]
-        
-        url: str = f'{self.fetcher.base_url}/v2/users/{self.fetcher.user_id}/vehicles/{self.vin.value}/mycar'
-        data: Optional[Dict[str, Any]] = self.fetcher.fetchData(url, force)
 
-        if data is not None:
-            # Iterate over top-level items in data dict
-            for domain, keyClassMap in jobKeyClassMap.items():
-                if not updateCapabilities and domain == Domain.USER_CAPABILITIES:
-                    continue
-                # if domain.value in data:
-                if domain.value not in self.domains:
-                    self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
-                
-                for key, className in keyClassMap.items():
-                    if domain.value in data:
-                        if key in data[domain.value]:
-                            if key in self.domains[domain.value]:
-                                LOG.debug('Status %s exists, updating it', key)
-                                self.domains[domain.value][key].update(fromDict=data[domain.value][key])
-                            else:
-                                LOG.debug('Status %s does not exist, creating it', key)
-                                self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
-                                                                            fromDict=data[domain.value][key], fixAPI=self.fixAPI)
-                    # else:
-                        # Make a placeholder that we can overwrite later
-                        # if key in self.domains[domain.value]:
-                        # self.domains[domain.value][key] = className(vehicle=self, parent=self.domains[domain.value], statusId=key,
-                        #                                                     fromDict={}, fixAPI=self.fixAPI)
-                        # else:
-                        #     self.domains[domain.value] = { key: None }
-                if domain.value in data:
-                    if 'error' in data[domain.value]:
-                        self.domains[domain.value].updateError(data[domain.value])
+        # Create a charging settings domain object
+        charging_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
+        self.assign_properties_to_domain(
+            klass=ChargingSettings,
+            properties=charging_settings_dict,
+            domain_value=Domain.CHARGING.value,
+            settings_key='chargingSettings')
 
-                # check that there is no additional status than the configured ones, except for "target" that we merge into
-                # the known ones
-                # for key, value in {key: value for key, value in data[domain.value].items()
-                #                     if key not in list(keyClassMap.keys()) and key not in ['error']}.items():
-                #     LOG.debug('%s: Unknown attribute %s with value %s in domain %s', self.getGlobalAddress(), key, value, domain.value)
-                # else:
-                #     # Make a placeholder that we can overwrite later
-                #     if domain.value not in self.domains:
-                #         self.domains[domain.value] = DomainDict(localAddress=domain.value, parent=self.domains)
+        # charging status
+        charging_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
+        self.assign_properties_to_domain(
+            klass=ChargingStatus,
+            properties=charging_status_dict['charging'],
+            domain_value=Domain.CHARGING.value,
+            settings_key='chargingStatus')
 
-            # check that there is no additional domain than the configured ones
-            for key, value in {key: value for key, value in data.items() if key not in list([domain.value for domain in jobKeyClassMap.keys()])}.items():
-                LOG.debug('%s: Unknown domain %s with value %s', self.getGlobalAddress(), key, value)
+        # battery status
+        self.assign_properties_to_domain(
+            klass=BatteryStatus,
+            properties=charging_status_dict['battery'],
+            domain_value=Domain.CHARGING.value,
+            settings_key='batteryStatus')
 
-        # HACK map Cupra values back to VW values
-        # We need this conditional otherwise it will fail if `data is not None`
-        if Domain.SERVICES.value in self.domains:
+        # Climate status 
+        climatization_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/status')["data"]
+        self.assign_properties_to_domain(
+            klass=ClimatizationStatus,
+            properties=climatization_status_dict['climatisationStatus'],
+            domain_value=Domain.CLIMATISATION.value,
+            settings_key='climatisationStatus')
 
-            # Extract original data from engines and services in /mycar
-            charging_dict = self.domains[Domain.SERVICES.value]['charging'].fromDict
-            engines_dict = self.domains[Domain.ENGINES.value]['primary'].fromDict
-            climatization_dict = self.domains[Domain.SERVICES.value]['climatisation'].fromDict
-            
-            # Create a charging domain object
-            self.domains[Domain.CHARGING.value] = DomainDict(localAddress=Domain.CHARGING.value, parent=self.domains)
-
-            charging_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
-            charging_settings_dict['targetSOC_pct'] = charging_settings_dict['targetSoc_pct']
-            del charging_settings_dict['targetSoc_pct']
-            self.domains[Domain.CHARGING.value]['chargingSettings'] = ChargingSettings(vehicle=self,
-                parent=self.domains[Domain.CHARGING.value],
-                statusId='chargingSettings',
-                fixAPI=self.fixAPI,
-                fromDict=charging_settings_dict)
-            # We also have to call update(), not just pass fromDict to constructor
-            self.domains[Domain.CHARGING.value]['chargingSettings'].update(charging_settings_dict)
-
-            # Set charging status domain key
-            current_charging_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
-            charging_status_dict = {
-                'remainingTime': current_charging_status_dict['charging']['remainingChargingTimeToComplete_min'],
-                # 'status': current_charging_status_dict['charging']['chargingState'],
-                'status': charging_dict['status'],
-                'chargeMode': current_charging_status_dict['charging']['chargeMode'],
-                'chargePower_kW': current_charging_status_dict['charging']['chargePower_kW'],
-                'chargeRate_kmph': current_charging_status_dict['charging']['chargeRate_kmph']
-            }
-            self.domains[Domain.CHARGING.value]['chargingStatus'] = ChargingStatus(vehicle=self,
-                parent=self.domains[Domain.CHARGING.value],
-                statusId='chargingStatus',
-                fixAPI=self.fixAPI,
-                fromDict=charging_status_dict,
-            )
-            # # We also have to call update(), not just pass fromDict to constructor
-            self.domains[Domain.CHARGING.value]['chargingStatus'].update(charging_status_dict)
-
-            # Set battery status domain key
-            battery_status_dict = {
-                'currentSOC_pct': engines_dict['level'],
-                'cruisingRangeElectric_km': engines_dict['range']['value']
-            }
-            self.domains[Domain.CHARGING.value]['batteryStatus'] = BatteryStatus(vehicle=self,
-                parent=self.domains[Domain.CHARGING.value],
-                statusId='batteryStatus',
-                fixAPI=self.fixAPI,
-                fromDict=battery_status_dict)
-            # We also have to call update(), not just pass fromDict to constructor
-            self.domains[Domain.CHARGING.value]['batteryStatus'].update(battery_status_dict)
-
-            # Climate status domain key
-            climate_status_dict = {
-                'climatisationState': climatization_dict['status'],
-                'remainingClimatisationTime_min': climatization_dict['remainingTime']
-            }
-            self.domains[Domain.CLIMATISATION.value]['climatisationStatus'] = ClimatizationStatus(vehicle=self,
-                parent=self.domains[Domain.CLIMATISATION.value],
-                statusId='climatisationStatus',
-                fixAPI=self.fixAPI,
-                fromDict=climate_status_dict)
-            # We also have to call update(), not just pass fromDict to constructor
-            self.domains[Domain.CLIMATISATION.value]['climatisationStatus'].update(climate_status_dict)
-
-            # Climate settings domain key
-            climate_settings_dict = {
-                'targetTemperature_K': climatization_dict['targetTemperatureKelvin'],
-                'targetTemperature_C': kelvinToCelsius(float(climatization_dict['targetTemperatureKelvin'])),
-                'targetTemperature_F': kelvinToFarenheit(float(climatization_dict['targetTemperatureKelvin']))
-            }
-            self.domains[Domain.CLIMATISATION.value]['climatisationSettings'] = ClimatizationSettings(vehicle=self,
-                parent=self.domains[Domain.CLIMATISATION.value],
-                statusId='climatisationSettings',
-                fixAPI=self.fixAPI,
-                fromDict=climate_settings_dict)
-            # We also have to call update(), not just pass fromDict to constructor
-            self.domains[Domain.CLIMATISATION.value]['climatisationSettings'].update(climate_settings_dict)
+        # Climate settings domain key
+        climatization_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/settings')['settings']
+        self.assign_properties_to_domain(
+            klass=ClimatizationSettings,
+            properties=climatization_settings_dict,
+            domain_value=Domain.CLIMATISATION.value,
+            settings_key='climatisationSettings')
 
         # Controls
         self.controls.update()
+
+        # parking position
+        parking_position_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/parkingposition')
+        self.assign_properties_to_domain(
+            klass=ParkingPosition,
+            properties=parking_position_dict,
+            domain_value=Domain.PARKING.value,
+            settings_key='parkingPosition')
+
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''

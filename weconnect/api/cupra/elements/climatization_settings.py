@@ -3,7 +3,7 @@ import logging
 
 from weconnect.addressable import AddressableLeaf, ChangeableAttribute, AddressableAttribute, AliasChangeableAttribute
 from weconnect.api.cupra.elements.generic_settings import GenericSettings
-from weconnect.util import celsiusToKelvin, farenheitToKelvin
+from weconnect.util import celsiusToKelvin, farenheitToKelvin, kelvinToCelsius, kelvinToFarenheit
 
 LOG = logging.getLogger("weconnect")
 
@@ -73,6 +73,10 @@ class ClimatizationSettings(GenericSettings):
         # Cupra
         if 'value' not in fromDict:
             fromDict['value'] = fromDict
+        if 'targetTemperature_C' not in fromDict['value']:
+            fromDict['value']['targetTemperature_C'] = kelvinToCelsius(fromDict['value']['targetTemperature_K'])
+        if 'targetTemperature_F' not in fromDict['value']:
+            fromDict['value']['targetTemperature_F'] = kelvinToFarenheit(fromDict['value']['targetTemperature_K'])
 
         if 'value' in fromDict:
             self.targetTemperature_K.fromDict(fromDict['value'], 'targetTemperature_K')

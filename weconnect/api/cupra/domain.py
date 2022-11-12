@@ -6,12 +6,11 @@ class Domain(Enum):
     ALL_CAPABLE = 'allCapable'
     USER_CAPABILITIES = 'userCapabilities'
     MEASUREMENTS = 'measurements'
-    SERVICES = 'services'
-    ENGINES = 'engines'
 
     # Standard domains from VW api
     CHARGING = 'charging'
     CLIMATISATION = 'climatisation'
+    PARKING = 'parking'
 
     def __str__(self):
         return self.value

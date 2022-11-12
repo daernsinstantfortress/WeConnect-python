@@ -24,10 +24,10 @@ class UnlockPlugState(ControlInputEnum,):
         return [UnlockPlugState.OFF, UnlockPlugState.ON]
 
 class ClimatizationState(Enum,):
-    OFF = 'Off'
-    ON = 'On'
-    HEATING = 'Heating'
-    COOLING = 'Cooling'
-    VENTILATION = 'Ventilation'
-    INVALID = 'Invalid'
+    OFF = 'off'
+    ON = 'on'
+    HEATING = 'heating'
+    COOLING = 'cooling'
+    VENTILATION = 'ventilation'
+    INVALID = 'invalid'
     UNKNOWN = 'Unknown Climatization State'

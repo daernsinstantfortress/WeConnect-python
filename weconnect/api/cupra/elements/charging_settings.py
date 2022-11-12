@@ -47,7 +47,8 @@ class ChargingSettings(GenericSettings):
             self.maxChargeCurrentAC.fromDict(fromDict['value'], 'maxChargeCurrentAC')
             self.autoUnlockPlugWhenCharged.fromDict(fromDict['value'], 'autoUnlockPlugWhenCharged')
             self.autoUnlockPlugWhenChargedAC.fromDict(fromDict['value'], 'autoUnlockPlugWhenChargedAC')
-            self.targetSOC_pct.fromDict(fromDict['value'], 'targetSOC_pct')
+            # Apparently different for Cupra. targetSOC_pct -> targetSoc_pct
+            self.targetSOC_pct.fromDict(fromDict['value'], 'targetSoc_pct')
         else:
             self.maxChargeCurrentAC.enabled = False
             self.autoUnlockPlugWhenCharged.enabled = False
