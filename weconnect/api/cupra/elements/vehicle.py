@@ -254,22 +254,22 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             except:
                 LOG.warn('Failed to get parking position')
 
-        if 'state' in self.capabilities:
-            try:
-                mileage_dict = self.fetcher.fetchData(
-                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/mileage')
-                
-                self.assign_properties_to_domain(
-                    klass=OdometerMeasurement,
-                    properties=mileage_dict,
-                    domain_value=Domain.MEASUREMENTS.value,
-                    settings_key='odometerStatus')
-
-                # TODO this endpoint is also gated by 'state' capability
-                # /v1/vehicles/vin/status (locks and window status)
-
-            except:
-                LOG.warn('Failed to get mileage')
+#        if 'state' in self.capabilities:
+#            try:
+#                mileage_dict = self.fetcher.fetchData(
+#                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/mileage')
+#                
+#                self.assign_properties_to_domain(
+#                    klass=OdometerMeasurement,
+#                    properties=mileage_dict,
+#                    domain_value=Domain.MEASUREMENTS.value,
+#                    settings_key='odometerStatus')
+#
+#                # TODO this endpoint is also gated by 'state' capability
+#                # /v1/vehicles/vin/status (locks and window status)
+#
+#            except:
+#                LOG.warn('Failed to get mileage')
 
         # Controls
         self.controls.update()
