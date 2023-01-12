@@ -29,6 +29,10 @@ class PlugStatus(GenericStatus):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update Plug status from dict')
 
+        # Cupra
+        if 'value' not in fromDict:
+            fromDict['value'] = fromDict
+
         if 'value' in fromDict:
             self.plugConnectionState.fromDict(fromDict['value'], 'plugConnectionState')
             self.plugLockState.fromDict(fromDict['value'], 'plugLockState')

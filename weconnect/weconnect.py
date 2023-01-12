@@ -18,6 +18,8 @@ from weconnect.api.vw.elements.vehicle import Vehicle as VwVehicle
 from weconnect.api.cupra.api import CupraApi
 from weconnect.api.cupra.elements.vehicle import Vehicle as CupraVehicle
 
+from weconnect.__version import __version__ as VERSION
+
 LOG = logging.getLogger("weconnect")
 
 class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attributes, too-many-public-methods
@@ -61,6 +63,9 @@ class WeConnect(AddressableObject):  # pylint: disable=too-many-instance-attribu
             selective (list[Domain], optional): Domains to request data for
         """
         super().__init__(localAddress='', parent=None)
+
+        LOG.info(f'Weconnect-python version {VERSION}')
+
         self.username: str = username
         self.password: str = password
 

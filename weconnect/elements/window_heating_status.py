@@ -23,6 +23,10 @@ class WindowHeatingStatus(GenericStatus):
         ignoreAttributes = ignoreAttributes or []
         LOG.debug('Update window heating status from dict')
 
+        # Cupra
+        if 'value' not in fromDict:
+            fromDict['value'] = fromDict
+
         if 'value' in fromDict:
             if 'windowHeatingStatus' in fromDict['value'] and fromDict['value']['windowHeatingStatus'] is not None:
                 for windowDict in fromDict['value']['windowHeatingStatus']:

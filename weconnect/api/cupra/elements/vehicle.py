@@ -1,28 +1,26 @@
 from __future__ import annotations
-from typing import Dict, List, Any, Type, Optional
+from typing import Dict, List, Any, Optional
 from enum import Enum
 import logging
 
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict, AddressableList
+from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
 from weconnect.api.cupra.elements.parking_position import ParkingPosition
-from weconnect.elements.generic_status import GenericStatus
 from weconnect.elements.error import Error
+from weconnect.elements.window_heating_status import WindowHeatingStatus
 from weconnect.errors import APICompatibilityError, APIError
-from weconnect.util import kelvinToCelsius, kelvinToFarenheit, toBool
+from weconnect.util import toBool
 from weconnect.api.cupra.domain import Domain
 from weconnect.fetch import Fetcher
+from weconnect.elements.plug_status import PlugStatus
 from weconnect.api.cupra.elements.climatization_status import ClimatizationStatus
 from weconnect.api.cupra.elements.climatization_settings import ClimatizationSettings
 from weconnect.api.cupra.elements.charging_settings import ChargingSettings
 from weconnect.api.cupra.elements.controls import Controls
 from weconnect.api.cupra.elements.generic_capability import GenericCapability
 from weconnect.api.cupra.elements.charging_status import ChargingStatus
-from weconnect.api.cupra.elements.odometer_measurement import OdometerMeasurement
 from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
 from weconnect.api.cupra.elements.battery_status import BatteryStatus
-
-# Cupra
-from weconnect.api.cupra.elements.engine_state import EngineState
 
 LOG: logging.Logger = logging.getLogger("weconnect")
 
@@ -58,7 +56,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
     ) -> None:
         self.fetcher: Fetcher = fetcher
         super().__init__(localAddress=vin, parent=parent)
-        
+
         # Public API properties
         self.vin: AddressableAttribute[str] = AddressableAttribute(
             localAddress='vin', parent=self, value=None, valueType=str)
@@ -88,7 +86,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             localAddress='coUsers', parent=self)
         self.controls: Controls = Controls(
             localAddress='controls', vehicle=self, parent=self)
-        
+
         self.fixAPI: bool = fixAPI
         self.requestTracker: Optional[RequestTracker] = None
         if enableTracker:
@@ -111,6 +109,8 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         return False
 
     def assign_properties_to_domain(self, klass, properties: dict, domain_value: str, settings_key: str) -> DomainDict:
+        if not properties:
+            return
         if domain_value not in self.domains:
             self.domains[domain_value] = DomainDict(localAddress=domain_value, parent=self.domains)
             self.domains[domain_value].enabled = True
@@ -122,10 +122,10 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         else:
             LOG.debug('Status %s does not exist, creating it', settings_key)
             self.domains[domain_value][settings_key] = klass(vehicle=self,
-                parent=self.domains[domain_value],
-                statusId=settings_key,
-                fixAPI=self.fixAPI,
-                fromDict=properties)
+                                                             parent=self.domains[domain_value],
+                                                             statusId=settings_key,
+                                                             fixAPI=self.fixAPI,
+                                                             fromDict=properties)
             # We also have to call update(), not just pass fromDict to constructor
             self.domains[domain_value][settings_key].update(fromDict=properties)
             self.domains[domain_value][settings_key].enabled = True
@@ -141,6 +141,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         if fromDict is not None:
             LOG.debug('Create /update vehicle')
 
+             # Set basic vehicle properties
             self.vin.fromDict(fromDict, 'vin')
             self.role.fromDict(fromDict, 'userRole')
             self.enrollmentStatus.fromDict(fromDict, 'enrollmentStatus')
@@ -150,22 +151,28 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             self.nickname.fromDict(fromDict, 'vehicleNickname')
             self.brandCode.fromDict(fromDict, 'brandCode')
 
-            if updateCapabilities and 'capabilities' in fromDict and fromDict['capabilities'] is not None:
-                for capDict in fromDict['capabilities']:
-                    if 'id' in capDict:
-                        if capDict['id'] in self.capabilities:
-                            self.capabilities[capDict['id']].update(fromDict=capDict)
-                        else:
-                            self.capabilities[capDict['id']] = GenericCapability(
-                                capabilityId=capDict['id'], parent=self.capabilities, fromDict=capDict,
-                                fixAPI=self.fixAPI)
-                for capabilityId in [capabilityId for capabilityId in self.capabilities.keys()
-                                     if capabilityId not in [capability['id']
-                                     for capability in fromDict['capabilities'] if 'id' in capability]]:
-                    del self.capabilities[capabilityId]
-            else:
-                self.capabilities.clear()
-                self.capabilities.enabled = False
+            # Update capabilities
+            if updateCapabilities:
+                capabilities_dict = self.fetcher.fetchData(
+                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/capabilities')
+                if 'capabilities' in capabilities_dict and capabilities_dict['capabilities'] is not None:
+                    for capDict in capabilities_dict['capabilities']:
+                        if 'id' in capDict:
+                            if capDict['id'] in self.capabilities:
+                                self.capabilities[capDict['id']].update(fromDict=capDict)
+                            else:
+                                self.capabilities[capDict['id']] = GenericCapability(
+                                    capabilityId=capDict['id'],
+                                    parent=self.capabilities,
+                                    fromDict=capDict,
+                                    fixAPI=self.fixAPI)
+                    for capabilityId in [capabilityId for capabilityId in self.capabilities.keys()
+                            if capabilityId not in [capability['id']
+                            for capability in capabilities_dict['capabilities'] if 'id' in capability]]:
+                        del self.capabilities[capabilityId]
+                else:
+                    self.capabilities.clear()
+                    self.capabilities.enabled = False
 
             if 'images' in fromDict:
                 self.images.setValueWithCarTime(fromDict['images'], lastUpdateFromCar=None, fromServer=True)
@@ -194,21 +201,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 self.coUsers.enabled = False
                 self.coUsers.clear()
 
-            for key, value in {key: value for key, value in fromDict.items()
-                               if key not in ['vin',
-                                              'role',
-                                              'enrollmentStatus',
-                                              'userRoleStatus',
-                                              'model',
-                                              'devicePlatform',
-                                              'nickname',
-                                              'brandCode',
-                                              'capabilities',
-                                              'images',
-                                              'tags',
-                                              'coUsers']}.items():
-                LOG.debug('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
-
         self.updateStatus(updateCapabilities=updateCapabilities, force=force, selective=selective)
 
     def updateStatus(self, updateCapabilities: bool = True, force: bool = False,  # noqa: C901 # pylint: disable=too-many-branches
@@ -218,56 +210,69 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
         if self.vin.value is None:
             raise APIError('VIN value is not set')
 
-        # Create a charging settings domain object
-        charging_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
-        self.assign_properties_to_domain(
-            klass=ChargingSettings,
-            properties=charging_settings_dict,
-            domain_value=Domain.CHARGING.value,
-            settings_key='chargingSettings')
+        charging_settings_dict = self.fetcher.fetchData(
+            f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/settings')['settings']
+        charging_status_dict = self.fetcher.fetchData(
+            f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
+        climatization_status_dict = self.fetcher.fetchData(
+            f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/status')["data"]
+        climatization_settings_dict = self.fetcher.fetchData(
+            f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/settings')['settings']
 
-        # charging status
-        charging_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/charging/status')['status']
-        self.assign_properties_to_domain(
-            klass=ChargingStatus,
-            properties=charging_status_dict['charging'],
-            domain_value=Domain.CHARGING.value,
-            settings_key='chargingStatus')
+        jobs = {
+            Domain.CHARGING: {
+                'chargingSettings': (ChargingSettings, charging_settings_dict),
+                'chargingStatus': (ChargingStatus, charging_status_dict['charging']),
+                'batteryStatus': (BatteryStatus, charging_status_dict['battery']),
+                'plugStatus': (PlugStatus, charging_status_dict['plug'])
+            },
+            Domain.CLIMATISATION: {
+                'climatisationStatus': (ClimatizationStatus, climatization_status_dict['climatisationStatus']),
+                'windowHeatingStatus': (WindowHeatingStatus, climatization_status_dict['windowHeatingStatus']),
+                'climatisationSettings': (ClimatizationSettings, climatization_settings_dict)
+            }
+        }
 
-        # battery status
-        self.assign_properties_to_domain(
-            klass=BatteryStatus,
-            properties=charging_status_dict['battery'],
-            domain_value=Domain.CHARGING.value,
-            settings_key='batteryStatus')
+        for domain_enum, domain_props in jobs.items():
+            for prop_name, prop_config in domain_props.items():
+                self.assign_properties_to_domain(
+                    klass=prop_config[0],
+                    properties=prop_config[1],
+                    domain_value=domain_enum.value,
+                    settings_key=prop_name)
 
-        # Climate status 
-        climatization_status_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/status')["data"]
-        self.assign_properties_to_domain(
-            klass=ClimatizationStatus,
-            properties=climatization_status_dict['climatisationStatus'],
-            domain_value=Domain.CLIMATISATION.value,
-            settings_key='climatisationStatus')
+        if 'parkingPosition' in self.capabilities:
+            try:
+                parking_position_dict = self.fetcher.fetchData(
+                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/parkingposition')
+                
+                self.assign_properties_to_domain(
+                    klass=ParkingPosition,
+                    properties=parking_position_dict,
+                    domain_value=Domain.PARKING.value,
+                    settings_key='parkingPosition')
+            except:
+                LOG.warn('Failed to get parking position')
 
-        # Climate settings domain key
-        climatization_settings_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/settings')['settings']
-        self.assign_properties_to_domain(
-            klass=ClimatizationSettings,
-            properties=climatization_settings_dict,
-            domain_value=Domain.CLIMATISATION.value,
-            settings_key='climatisationSettings')
+        if 'state' in self.capabilities:
+            try:
+                mileage_dict = self.fetcher.fetchData(
+                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/mileage')
+                
+                self.assign_properties_to_domain(
+                    klass=OdometerMeasurement,
+                    properties=mileage_dict,
+                    domain_value=Domain.MEASUREMENTS.value,
+                    settings_key='odometerStatus')
+
+                # TODO this endpoint is also gated by 'state' capability
+                # /v1/vehicles/vin/status (locks and window status)
+
+            except:
+                LOG.warn('Failed to get mileage')
 
         # Controls
         self.controls.update()
-
-        # parking position
-        parking_position_dict = self.fetcher.fetchData(f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/parkingposition')
-        self.assign_properties_to_domain(
-            klass=ParkingPosition,
-            properties=parking_position_dict,
-            domain_value=Domain.PARKING.value,
-            settings_key='parkingPosition')
-
 
     def __str__(self) -> str:  # noqa: C901
         returnString: str = ''
@@ -412,7 +417,6 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             GDC_MISSING = 'gdc_missing'
             INACTIVE = 'inactive'
             UNKNOWN = 'unknown'
-
 
         class UserRoleStatus(Enum,):
             ENABLED = 'ENABLED'

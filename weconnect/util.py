@@ -21,7 +21,7 @@ def robustTimeParse(timeString: str) -> datetime:
         r'^(?P<start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.)(?P<fractions>\d+)(?P<end>\+\d{2}:\d{2})$', timeString)
     if match:
         timeString = match.group('start') + match.group('fractions').ljust(6, "0") + match.group('end')
-    return datetime.fromisoformat(timeString).replace(microsecond=0)
+    return datetime.fromisoformat(timeString).replace(microsecond=0) if timeString else None
 
 
 def toBool(value: Any) -> bool:

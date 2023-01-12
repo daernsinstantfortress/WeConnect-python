@@ -100,7 +100,7 @@ class WeConnectSession(VWWebSession):
     def doWebAuth(self, authorizationUrl):  # noqa: C901
         websession: requests.Session = requests.Session()
         retries = Retry(total=self.retries,
-                        backoff_factor=0.1,
+                        backoff_factor=2,
                         status_forcelist=[500],
                         raise_on_status=False)
         websession.mount('https://', HTTPAdapter(max_retries=retries))
