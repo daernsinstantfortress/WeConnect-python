@@ -17,6 +17,7 @@ class AccessStatus(GenericStatus):
         fixAPI=True,
     ):
         self.overallStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.OverallState)
+        self.doorLockStatus = AddressableAttribute(localAddress='doorLockStatus', parent=self, value=None, valueType=AccessStatus.Door.LockState)
         self.engineStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.EngineState)
         self.lightsStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.LightsState)
         self.doors = AddressableDict(localAddress='doors', parent=self)
@@ -86,18 +87,23 @@ class AccessStatus(GenericStatus):
                 self.windows.enabled = False
 
             fromDict['value']['overallStatus'] = AccessStatus.OverallState.SAFE
+            fromDict['value']['doorLockStatus'] = AccessStatus.Door.LockState.LOCKED
 
             for doorName in self.doors.keys():
                 door = self.doors[doorName]
-                if (door.openState.value != AccessStatus.Door.OpenState.CLOSED) or (door.lockState.value != AccessStatus.Door.LockState.LOCKED):
+                if door.lockState.value == AccessStatus.Door.LockState.UNLOCKED:
+                    fromDict['value']['doorLockStatus'] = AccessStatus.OverallState.UNLOCKED
+
+                if (door.openState.value == AccessStatus.Door.OpenState.OPEN) or (door.lockState.value == AccessStatus.Door.LockState.UNLOCKED):
                     fromDict['value']['overallStatus'] = AccessStatus.OverallState.UNSAFE
 
             for windowName in self.windows.keys():
                 window = self.windows[windowName]
-                if (window.openState.value is not AccessStatus.Window.OpenState.CLOSED):
+                if (window.openState.value == AccessStatus.Window.OpenState.OPEN):
                     fromDict['value']['overallStatus'] = AccessStatus.OverallState.UNSAFE
 
             self.overallStatus.fromDict(fromDict['value'], 'overallStatus')
+            self.doorLockStatus.fromDict(fromDict['value'], 'doorLockStatus')
 
             if 'engine' in fromDict['value']:
                 self.engineStatus.fromDict(fromDict['value'], 'engine')
@@ -132,6 +138,8 @@ class AccessStatus(GenericStatus):
             string += f'\n\tEngine: {self.engineStatus.value.value}'
         if self.lightsStatus is not None and self.lightsStatus.enabled:
             string += f'\n\tLights: {self.lightsStatus.value.value}'
+        if self.doorLockStatus is not None and self.doorLockStatus.enabled:
+            string += f'\n\tDoor locks: {self.doorLockStatus.value.value}'
 
         return string
 
