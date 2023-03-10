@@ -21,6 +21,8 @@ from weconnect.api.cupra.elements.generic_capability import GenericCapability
 from weconnect.api.cupra.elements.charging_status import ChargingStatus
 from weconnect.api.cupra.elements.helpers.request_tracker import RequestTracker
 from weconnect.api.cupra.elements.battery_status import BatteryStatus
+from weconnect.api.cupra.elements.access_status import AccessStatus
+
 
 LOG: logging.Logger = logging.getLogger("weconnect")
 
@@ -218,6 +220,8 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/status')["data"]
         climatization_settings_dict = self.fetcher.fetchData(
             f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/settings')['settings']
+        status_dict = self.fetcher.fetchData(
+            f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/status')
 
         jobs = {
             Domain.CHARGING: {
@@ -230,7 +234,10 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 'climatisationStatus': (ClimatizationStatus, climatization_status_dict['climatisationStatus']),
                 'windowHeatingStatus': (WindowHeatingStatus, climatization_status_dict['windowHeatingStatus']),
                 'climatisationSettings': (ClimatizationSettings, climatization_settings_dict)
-            }
+            },
+            Domain.ACCESS: {
+                'accessStatus': (AccessStatus, status_dict)
+            },            
         }
 
         for domain_enum, domain_props in jobs.items():

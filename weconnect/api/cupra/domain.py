@@ -11,6 +11,7 @@ class Domain(Enum):
     CHARGING = 'charging'
     CLIMATISATION = 'climatisation'
     PARKING = 'parking'
+    ACCESS = 'access'
 
     def __str__(self):
         return self.value
