@@ -92,7 +92,7 @@ class AccessStatus(GenericStatus):
             for doorName in self.doors.keys():
                 door = self.doors[doorName]
                 if door.lockState.value == AccessStatus.Door.LockState.UNLOCKED:
-                    fromDict['value']['doorLockStatus'] = AccessStatus.OverallState.UNLOCKED
+                    fromDict['value']['doorLockStatus'] = AccessStatus.Door.LockState.UNLOCKED
 
                 if (door.openState.value == AccessStatus.Door.OpenState.OPEN) or (door.lockState.value == AccessStatus.Door.LockState.UNLOCKED):
                     fromDict['value']['overallStatus'] = AccessStatus.OverallState.UNSAFE
