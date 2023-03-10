@@ -3,6 +3,7 @@ import logging
 
 from weconnect.addressable import AddressableObject, AddressableAttribute, AddressableDict
 from weconnect.elements.generic_status import GenericStatus
+from weconnect.elements.access_control_state import AccessControlState
 
 LOG = logging.getLogger("weconnect")
 
@@ -16,10 +17,10 @@ class AccessStatus(GenericStatus):
         fromDict=None,
         fixAPI=True,
     ):
-        self.overallStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.OverallState)
-        self.doorLockStatus = AddressableAttribute(localAddress='doorLockStatus', parent=self, value=None, valueType=AccessStatus.Door.LockState)
-        self.engineStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.EngineState)
-        self.lightsStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessStatus.LightsState)
+        self.overallStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessControlState.OverallState)
+        self.doorLockStatus = AddressableAttribute(localAddress='doorLockStatus', parent=self, value=None, valueType=AccessControlState.LockState)
+        self.engineStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessControlState.EngineState)
+        self.lightsStatus = AddressableAttribute(localAddress='overallStatus', parent=self, value=None, valueType=AccessControlState.LightsState)
         self.doors = AddressableDict(localAddress='doors', parent=self)
         self.windows = AddressableDict(localAddress='windows', parent=self)
         super().__init__(vehicle=vehicle, parent=parent, statusId=statusId, fromDict=fromDict, fixAPI=fixAPI)
@@ -86,21 +87,21 @@ class AccessStatus(GenericStatus):
                 self.windows.clear()
                 self.windows.enabled = False
 
-            fromDict['value']['overallStatus'] = AccessStatus.OverallState.SAFE
-            fromDict['value']['doorLockStatus'] = AccessStatus.Door.LockState.LOCKED
+            fromDict['value']['overallStatus'] = AccessControlState.OverallState.SAFE
+            fromDict['value']['doorLockStatus'] = AccessControlState.LockState.LOCKED
 
             for doorName in self.doors.keys():
                 door = self.doors[doorName]
-                if door.lockState.value == AccessStatus.Door.LockState.UNLOCKED:
-                    fromDict['value']['doorLockStatus'] = AccessStatus.Door.LockState.UNLOCKED
+                if door.lockState.value == AccessControlState.LockState.UNLOCKED:
+                    fromDict['value']['doorLockStatus'] = AccessControlState.LockState.UNLOCKED
 
-                if (door.openState.value == AccessStatus.Door.OpenState.OPEN) or (door.lockState.value == AccessStatus.Door.LockState.UNLOCKED):
-                    fromDict['value']['overallStatus'] = AccessStatus.OverallState.UNSAFE
+                if (door.openState.value == AccessControlState.OpenState.OPEN) or (door.lockState.value == AccessControlState.LockState.UNLOCKED):
+                    fromDict['value']['overallStatus'] = AccessControlState.OverallState.UNSAFE
 
             for windowName in self.windows.keys():
                 window = self.windows[windowName]
-                if (window.openState.value == AccessStatus.Window.OpenState.OPEN):
-                    fromDict['value']['overallStatus'] = AccessStatus.OverallState.UNSAFE
+                if (window.openState.value == AccessControlState.OpenState.OPEN):
+                    fromDict['value']['overallStatus'] = AccessControlState.OverallState.UNSAFE
 
             self.overallStatus.fromDict(fromDict['value'], 'overallStatus')
             self.doorLockStatus.fromDict(fromDict['value'], 'doorLockStatus')
@@ -143,19 +144,6 @@ class AccessStatus(GenericStatus):
 
         return string
 
-    class OverallState(Enum):
-        SAFE = 'safe'
-        UNSAFE = 'unsafe'
-        INVALID = 'invalid'
-        UNKNOWN = 'unknown overall state'
-
-    class EngineState(Enum):
-        ON = 'on'
-        OFF = 'off'
-
-    class LightsState(Enum):
-        ON = 'on'
-        OFF = 'off'
 
     class Door(AddressableObject):
         def __init__(
@@ -165,9 +153,9 @@ class AccessStatus(GenericStatus):
         ):
             super().__init__(localAddress=None, parent=parent)
             self.openState = AddressableAttribute(
-                localAddress='openState', parent=self, value=None, valueType=AccessStatus.Door.OpenState)
+                localAddress='openState', parent=self, value=None, valueType=AccessControlState.OpenState)
             self.lockState = AddressableAttribute(
-                localAddress='lockState', parent=self, value=None, valueType=AccessStatus.Door.LockState)
+                localAddress='lockState', parent=self, value=None, valueType=AccessControlState.LockState)
             if fromDict is not None:
                 self.update(fromDict)
 
@@ -183,64 +171,31 @@ class AccessStatus(GenericStatus):
             if 'locked' in fromDict:
                 if fromDict['locked'] == "true":
                     self.lockState.setValueWithCarTime(
-                        AccessStatus.Door.LockState.LOCKED, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.LockState.LOCKED, lastUpdateFromCar=None, fromServer=True)
                 elif fromDict['locked'] == "false":
                     self.lockState.setValueWithCarTime(
-                        AccessStatus.Door.LockState.UNLOCKED, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.LockState.UNLOCKED, lastUpdateFromCar=None, fromServer=True)
                 else:
                     self.lockState.setValueWithCarTime(
-                        AccessStatus.Door.LockState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.LockState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
             else:
                 self.lockState.setValueWithCarTime(
-                    AccessStatus.Door.LockState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
+                    AAccessControlState.LockState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
 
 
             if 'open' in fromDict:
                 if fromDict['open'] == "true":
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Door.OpenState.OPEN, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.OPEN, lastUpdateFromCar=None, fromServer=True)
                 elif fromDict['open'] == "false":
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Door.OpenState.CLOSED, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.CLOSED, lastUpdateFromCar=None, fromServer=True)
                 else:
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Door.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
             else:
                 self.openState.setValueWithCarTime(
-                    AccessStatus.Door.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-
-
-            # if 'status' in fromDict and fromDict['status']:
-            #     if 'locked' in fromDict['status']:
-            #         self.lockState.setValueWithCarTime(
-            #             AccessStatus.Door.LockState.LOCKED, lastUpdateFromCar=None, fromServer=True)
-            #     elif 'unlocked' in fromDict['status']:
-            #         self.lockState.setValueWithCarTime(
-            #             AccessStatus.Door.LockState.UNLOCKED, lastUpdateFromCar=None, fromServer=True)
-            #     else:
-            #         self.lockState.setValueWithCarTime(
-            #             AccessStatus.Door.LockState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-
-            #     if 'open' in fromDict['status']:
-            #         self.openState.setValueWithCarTime(AccessStatus.Door.OpenState.OPEN,
-            #                                            lastUpdateFromCar=None, fromServer=True)
-            #     elif 'closed' in fromDict['status']:
-            #         self.openState.setValueWithCarTime(
-            #             AccessStatus.Door.OpenState.CLOSED, lastUpdateFromCar=None, fromServer=True)
-            #     elif 'unsupported' in fromDict['status']:
-            #         self.openState.setValueWithCarTime(
-            #             AccessStatus.Door.OpenState.UNSUPPORTED, lastUpdateFromCar=None, fromServer=True)
-            #     elif 'invalid' in fromDict['status']:
-            #         self.openState.setValueWithCarTime(
-            #             AccessStatus.Door.OpenState.INVALID, lastUpdateFromCar=None, fromServer=True)
-            #     else:
-            #         self.openState.setValueWithCarTime(
-            #             AccessStatus.Door.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
-            # elif 'locked' in fromDict:
-
-            # else:
-            #     self.lockState.enabled = False
-            #     self.openState.enabled = False
+                    AccessControlState.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
 
             for key, value in {key: value for key, value in fromDict.items() if key not in ['locked', 'open', 'name']}.items():
                 LOG.warning('%s: Unknown attribute %s with value %s', self.getGlobalAddress(), key, value)
@@ -253,18 +208,6 @@ class AccessStatus(GenericStatus):
                 returnString += f', {self.lockState.value.value}'  # pylint: disable=no-member
             return returnString
 
-        class OpenState(Enum):
-            OPEN = 'open'
-            CLOSED = 'closed'
-            UNSUPPORTED = 'unsupported'
-            INVALID = 'invalid'
-            UNKNOWN = 'unknown open state'
-
-        class LockState(Enum):
-            LOCKED = 'locked'
-            UNLOCKED = 'unlocked'
-            UNKNOWN = 'unknown lock state'
-
     class Window(AddressableObject):
         def __init__(
             self,
@@ -273,7 +216,7 @@ class AccessStatus(GenericStatus):
         ):
             super().__init__(localAddress=None, parent=parent)
             self.openState = AddressableAttribute(
-                localAddress='openState', parent=self, value=None, valueType=AccessStatus.Window.OpenState)
+                localAddress='openState', parent=self, value=None, valueType=AccessControlState.OpenState)
             if fromDict is not None:
                 self.update(fromDict)
 
@@ -289,17 +232,17 @@ class AccessStatus(GenericStatus):
             if 'status' in fromDict and fromDict['status']:
                 if 'open' in fromDict['status']:
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Window.OpenState.OPEN, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.OPEN, lastUpdateFromCar=None, fromServer=True)
                 elif 'closed' in fromDict['status']:
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Window.OpenState.CLOSED, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.CLOSED, lastUpdateFromCar=None, fromServer=True)
                 elif 'unsupported' in fromDict['status']:
-                    self.openState.setValueWithCarTime(AccessStatus.Window.OpenState.UNSUPPORTED, lastUpdateFromCar=None)
+                    self.openState.setValueWithCarTime(AccessControlState.OpenState.UNSUPPORTED, lastUpdateFromCar=None)
                 elif 'invalid' in fromDict['status']:
-                    self.openState.setValueWithCarTime(AccessStatus.Window.OpenState.INVALID, lastUpdateFromCar=None)
+                    self.openState.setValueWithCarTime(AccessControlState.OpenState.INVALID, lastUpdateFromCar=None)
                 else:
                     self.openState.setValueWithCarTime(
-                        AccessStatus.Window.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
+                        AccessControlState.OpenState.UNKNOWN, lastUpdateFromCar=None, fromServer=True)
                     LOG.warning('No unsupported window status: %s was provided, please report this as a bug', fromDict['status'])
             else:
                 self.openState.enabled = False
@@ -309,10 +252,3 @@ class AccessStatus(GenericStatus):
 
         def __str__(self):
             return f'{self.id}: {self.openState.value.value}'  # pylint: disable=no-member
-
-        class OpenState(Enum,):
-            OPEN = 'open'
-            CLOSED = 'closed'
-            UNSUPPORTED = 'unsupported'
-            INVALID = 'invalid'
-            UNKNOWN = 'unknown open state'
