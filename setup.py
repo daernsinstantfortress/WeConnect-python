@@ -11,18 +11,18 @@ SETUP_REQUIRED = (HERE / "setup_requirements.txt").read_text()
 TEST_REQUIRED = (HERE / "test_requirements.txt").read_text()
 
 setup(
-    name='weconnect',
+    name='weconnect-cupra-daern',
     packages=find_packages(),
     version=open("weconnect/__version.py").readlines()[-1].split()[-1].strip("\"'"),
-    description='Python API for the Volkswagen WeConnect Services',
+    description='Fork of Python API for the Volkswagen WeConnect Services to support Cupra Born',
     long_description=README,
     long_description_content_type="text/markdown",
-    author='Till Steinbach',
+    author='Till Steinbach / Alan Gibson / Stuart Hall',
     keywords='weconnect, we connect, carnet, car net, volkswagen, vw, telemetry',
-    url='https://github.com/tillsteinbach/WeConnect-python',
+    url='https://github.com/daernsinstantfortress/WeConnect-python',
     project_urls={
         'Funding': 'https://github.com/sponsors/tillsteinbach',
-        'Source': 'https://github.com/tillsteinbach/WeConnect-python',
+        'Source': 'https://github.com/daernsinstantfortress/WeConnect-python',
         'Bug Tracker': 'https://github.com/tillsteinbach/WeConnect-python/issues'
     },
     license='MIT',
@@ -44,4 +44,5 @@ setup(
     tests_require=TEST_REQUIRED,
     include_package_data=True,
     zip_safe=False,
+    package_data={'': ['weconnect/api/vw/badges/*.png']}
 )
