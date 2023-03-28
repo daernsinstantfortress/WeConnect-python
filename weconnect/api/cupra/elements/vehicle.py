@@ -220,8 +220,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/status')["data"]
         climatization_settings_dict = self.fetcher.fetchData(
             f'https://ola.prod.code.seat.cloud.vwgroup.com/vehicles/{self.vin.value}/climatisation/settings')['settings']
-        status_dict = self.fetcher.fetchData(
-            f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/status')
+
 
         jobs = {
             Domain.CHARGING: {
@@ -235,9 +234,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                 'windowHeatingStatus': (WindowHeatingStatus, climatization_status_dict['windowHeatingStatus']),
                 'climatisationSettings': (ClimatizationSettings, climatization_settings_dict)
             },
-            Domain.ACCESS: {
-                'accessStatus': (AccessStatus, status_dict)
-            },            
+          
         }
 
         for domain_enum, domain_props in jobs.items():
@@ -272,11 +269,17 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                     domain_value=Domain.MEASUREMENTS.value,
                     settings_key='odometerStatus')
 
-                # TODO this endpoint is also gated by 'state' capability
-                # /v1/vehicles/vin/status (locks and window status)
+                status_dict = self.fetcher.fetchData(
+                    f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/status')
+
+                self.assign_properties_to_domain(
+                    klass=AccessStatus,
+                    properties=status_dict,
+                    domain_value=Domain.ACCESS.value,
+                    settings_key='accessStatus')                
 
             except:
-                LOG.warn('Failed to get mileage')
+                LOG.warn('Failed to get vehicle status')
 
         # Controls
         self.controls.update()
