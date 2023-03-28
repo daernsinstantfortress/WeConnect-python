@@ -245,7 +245,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
                     domain_value=domain_enum.value,
                     settings_key=prop_name)
 
-        if 'parkingPosition' in self.capabilities:
+        if 'parkingPosition' in self.capabilities and not self.capabilities['parkingPosition'].status.value:
             try:
                 parking_position_dict = self.fetcher.fetchData(
                     f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/parkingposition')
@@ -258,7 +258,7 @@ class Vehicle(AddressableObject):  # pylint: disable=too-many-instance-attribute
             except:
                 LOG.warn('Failed to get parking position')
 
-        if 'state' in self.capabilities:
+        if 'state' in self.capabilities and not self.capabilities['state'].status.value:
             try:
                 mileage_dict = self.fetcher.fetchData(
                     f'https://ola.prod.code.seat.cloud.vwgroup.com/v1/vehicles/{self.vin.value}/mileage')
