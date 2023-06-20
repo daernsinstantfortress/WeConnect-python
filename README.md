@@ -1,4 +1,5 @@
-
+## Status
+**This repo is now archived and superceded by https://github.com/daernsinstantfortress/WeConnect-Cupra-python, which will be updated going forward**
 
 # WeConnect-python
 [![GitHub sourcecode](https://img.shields.io/badge/Source-GitHub-green)](https://github.com/tillsteinbach/WeConnect-python/)
